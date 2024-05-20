@@ -26,7 +26,11 @@ class Status(Enum):
 class Knowledge(object):
   def __init__(self):
     self.status = Status.ARRIVED
-    self.memory = {'location':carla.Vector3D(0.0,0.0,0.0)}    
+    self.memory = {
+                   'location':carla.Vector3D(0.0,0.0,0.0),
+                   'rotation':carla.Rotation(0.0,0.0,0.0),
+                   'lidar_data': None
+                   }    
     self.destination = self.get_location()
     self.status_changed = lambda *_, **__: None
     self.destination_changed = lambda *_, **__: None
@@ -75,7 +79,7 @@ class Knowledge(object):
     return self.distance(self.get_location(),destination) < 5.0
 
   def update_destination(self, new_destination):
-    if self.distance(self.destination,new_destination) < 5.0:
+    if self.distance(self.destination,new_destination) > 5.0:
       self.destination = new_destination
       self.destination_changed(new_destination)
    

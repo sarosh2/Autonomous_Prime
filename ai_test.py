@@ -136,7 +136,7 @@ def main():
                 control.steer = 0.00
                 control.brake = 1.0
                 control.hand_brake = False
-                autopilot.get_vehicle.apply_control(control)
+                vehicle.apply_control(control)
 
             else:
                 autopilot.set_destination(end)
