@@ -53,6 +53,8 @@ class Knowledge(object):
   # Retrieving data from memory
   # !Take note that it is unsafe and does not check whether the given field is in dic
   def retrieve_data(self, data_name):
+    if data_name not in self.memory.keys():
+      return None
     return self.memory[data_name]
 
   #updating status to correct value and making sure that everything is handled properly
