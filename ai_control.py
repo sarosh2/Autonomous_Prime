@@ -31,21 +31,74 @@ class Executor(object):
   #Update the executor at some intervals to steer the car in desired direction
   def update(self, time_elapsed):
     status = self.knowledge.get_status()
-    #TODO: this needs to be able to handle
+    #print('status:',status)
+    #print(f"Executor's knowledge object id: {id(self.knowledge)}")
+
+    #print(status)
     if status == Status.DRIVING:
-      dest = self.knowledge.get_current_destination()
-      self.update_control(dest, [1], time_elapsed)
+        self.handle_driving(time_elapsed)
+    else:
+      print('yo2')
+      if status == Status.HEALING:
+          self.handle_healing(time_elapsed)
+
+  def handle_driving(self, time_elapsed):
+    dest = self.knowledge.get_current_destination()
+    location = self.vehicle.get_transform().location
+    self.update_control(dest, [1], time_elapsed)
+
+  def handle_healing(self, time_elapsed):
+    
+    # Reduce speed, increase brake, and calculate avoidance maneuver
+    control = carla.VehicleControl()
+    control.throttle = 0.0
+    control.brake = 0.5  # Strong braking
+    control.steer = self.calculate_avoidance_steering()
+    self.vehicle.apply_control(control)
+
+  def calculate_avoidance_steering(self):
+    # Simple example: always steer right when healing
+    return -0.8  # Steer right to avoid collision
 
   # TODO: steer in the direction of destination and throttle or brake depending on how close we are to destination
   # TODO: Take into account that exiting the crash site could also be done in reverse, so there might need to be additional data passed between planner and executor, or there needs to be some way to tell this that it is ok to drive in reverse during HEALING and CRASHED states. An example is additional_vars, that could be a list with parameters that can tell us which things we can do (for example going in reverse)
   def update_control(self, destination, additional_vars, delta_time):
     #calculate throttle and heading
+    target_speed = additional_vars[0] if additional_vars else 1.0
+    # Get vehicle's current transform and location
+    vehicle_transform = self.vehicle.get_transform()
+    vehicle_location = vehicle_transform.location
+    vehicle_rotation = vehicle_transform.rotation
+
+    # Convert vehicle's current location and destination into numpy arrays
+    vehicle_pos = np.array([vehicle_location.x, vehicle_location.y])
+    destination_pos = np.array([destination.x, destination.y])
+
+    # Calculate the vector from the vehicle to the destination
+    vector_to_destination = destination_pos - vehicle_pos
+    vector_to_destination_normalized = vector_to_destination / np.linalg.norm(vector_to_destination)
+
+    # Get vehicle's forward vector
+    forward_vector = np.array([np.cos(np.radians(vehicle_rotation.yaw)), np.sin(np.radians(vehicle_rotation.yaw))])
+
+    # Dot product and cross product to find the angle to the destination
+    dot_product = np.dot(forward_vector, vector_to_destination_normalized)
+    cross_product = np.cross(forward_vector, vector_to_destination_normalized)
+
+    # Calculate steering angle (angle between vehicle's forward direction and destination direction)
+    angle_to_destination = np.arccos(np.clip(dot_product, -1.0, 1.0))
+    steer_direction = np.sign(cross_product)
+
+    # Create vehicle control object
     control = carla.VehicleControl()
-    control.throttle = 0.0
-    control.steer = 0.0
+    control.throttle = 0.4  # You might want to adjust this based on distance to destination and current speed
+    control.steer = steer_direction * (angle_to_destination / np.pi)  # Normalize steering angle to [-1, 1]
     control.brake = 0.0
     control.hand_brake = False
+
+    # Apply the control to the vehicle
     self.vehicle.apply_control(control)
+
 
 # Planner is responsible for creating a plan for moving around
 # In our case it creates a list of waypoints to follow so that vehicle arrives at destination
@@ -76,12 +129,15 @@ class Planner(object):
     
     if len(self.path) == 0:
       self.knowledge.update_status(Status.ARRIVED)
-    else:
-      self.knowledge.update_status(Status.DRIVING)
+    #else:
+      #self.knowledge.update_status(Status.DRIVING)
 
   #get current destination 
   def get_current_destination(self):
     status = self.knowledge.get_status()
+    print(f"Planner's knowledge object id: {id(self.knowledge)}")
+    print('status:',status)
+
     #if we are driving, then the current destination is next waypoint
     if status == Status.DRIVING:
       #TODO: Take into account traffic lights and other cars

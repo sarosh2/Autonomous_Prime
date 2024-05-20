@@ -46,12 +46,13 @@ class Monitor(object):
     data = np.reshape(data, (int(data.shape[0] / 4), 4))
     self.knowledge.update_data('lidar_data', data)
 
+
   def setup_lidar(self, world):
 
     #setup lidar blueprints and attributes
     lidar_bp = world.get_blueprint_library().find('sensor.lidar.ray_cast')
     lidar_bp.set_attribute('range',str(100))
-    lidar_bp.set_attribute('noise_stddvev',str(0.1))
+    lidar_bp.set_attribute('noise_stddev',str(0.1))
     lidar_bp.set_attribute('upper_fov',str(15.0))
     lidar_bp.set_attribute('lower_fov',str(-25.0))
     lidar_bp.set_attribute('channels',str(64.0))
@@ -81,7 +82,29 @@ class Monitor(object):
 class Analyser(object):
   def __init__(self, knowledge):
     self.knowledge = knowledge
+    self.is_lidar_below_threshold = False
+
+  def analyse_lidar(self):
+    THRESHOLD = 3.0
+    lidar_data = self.knowledge.get_lidar_data()
+    if lidar_data is None:
+      return
+    for cloud_point in lidar_data:
+      distance = np.sqrt(cloud_point[0]**2 + cloud_point[1]**2 + cloud_point[2]**2)
+      if distance < THRESHOLD:
+        self.is_lidar_below_threshold = True
+        break
+    
+    if self.is_lidar_below_threshold:
+      self.knowledge.update_status(data.Status.HEALING)
+    else:
+      self.knowledge.update_status(data.Status.DRIVING)
+
+
 
   #Function that is called at time intervals to update ai-state
   def update(self, time_elapsed):
+    print('Analyser update called')
+    self.analyse_lidar()
+    print('Lidar Data from Knowledge: ', self.knowledge.get_status())
     return

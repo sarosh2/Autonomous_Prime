@@ -26,7 +26,11 @@ class Status(Enum):
 class Knowledge(object):
   def __init__(self):
     self.status = Status.ARRIVED
-    self.memory = {'location':carla.Vector3D(0.0,0.0,0.0)}    
+    self.memory = {
+                   'location':carla.Vector3D(0.0,0.0,0.0),
+                   'rotation':carla.Rotation(0.0,0.0,0.0),
+                   'lidar_data': None
+                   }    
     self.destination = self.get_location()
     self.status_changed = lambda *_, **__: None
     self.destination_changed = lambda *_, **__: None
@@ -53,6 +57,8 @@ class Knowledge(object):
   # Retrieving data from memory
   # !Take note that it is unsafe and does not check whether the given field is in dic
   def retrieve_data(self, data_name):
+    if data_name not in self.memory:
+      return None
     return self.memory[data_name]
 
   #updating status to correct value and making sure that everything is handled properly
