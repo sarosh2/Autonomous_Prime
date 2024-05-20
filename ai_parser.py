@@ -25,8 +25,6 @@ class Monitor(object):
   def __init__(self, knowledge, vehicle):
     self.vehicle = vehicle
     self.knowledge = knowledge
-    self.collision_threshold = 1.0
-    self.healing_threshold = 3.0
     weak_self = weakref.ref(self)
     
     self.knowledge.update_data('location', self.vehicle.get_transform().location)
@@ -85,6 +83,8 @@ class Analyser(object):
   def __init__(self, knowledge):
     self.knowledge = knowledge
     self.is_lidar_below_threshold = False
+    self.collision_threshold = 1.0
+    self.healing_threshold = 3.0
 
   def detect_collision(self, data):
     # Implement collision detection logic
