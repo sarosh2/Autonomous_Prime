@@ -75,6 +75,9 @@ class Knowledge(object):
   def get_lidar_data(self):
     return self.retrieve_data('lidar_data')
 
+  def get_obstacles(self):
+    return self.retrieve_data('obstacles')
+
   def arrived_at(self, destination):
     return self.distance(self.get_location(),destination) < 5.0
 

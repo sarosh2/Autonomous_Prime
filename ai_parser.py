@@ -25,6 +25,8 @@ class Monitor(object):
   def __init__(self, knowledge, vehicle):
     self.vehicle = vehicle
     self.knowledge = knowledge
+    self.collision_threshold = 1.0
+    self.healing_threshold = 3.0
     weak_self = weakref.ref(self)
     
     self.knowledge.update_data('location', self.vehicle.get_transform().location)
@@ -84,23 +86,41 @@ class Analyser(object):
     self.knowledge = knowledge
     self.is_lidar_below_threshold = False
 
+  def detect_collision(self, data):
+    # Implement collision detection logic
+    for point in data:
+      if point[0]**2 + point[1]**2 + point[2]**2 < self.collision_threshold:  #threshold
+        return True
+    return False
+
+  def detect_obstacle(self, data):
+    obstacle_detected = False
+    obstacles = []
+    for point in data:
+      distance = point[0]**2 + point[1]**2 + point[2]**2
+      if distance < self.healing_threshold:  # Example threshold for obstacles
+        obstacle_detected = True
+        obstacle_location = carla.Location(x=point[0], y=point[1], z=point[2])
+        obstacles.append(obstacle_location)
+
+    self.knowledge.update_data('obstacles', obstacles)
+    return obstacle_detected
+
   def analyse_lidar(self):
-    THRESHOLD = 3.0
     lidar_data = self.knowledge.get_lidar_data()
     if lidar_data is None:
       return
-    for cloud_point in lidar_data:
-      distance = np.sqrt(cloud_point[0]**2 + cloud_point[1]**2 + cloud_point[2]**2)
-      if distance < THRESHOLD:
-        self.is_lidar_below_threshold = True
-        break
     
-    if self.is_lidar_below_threshold:
-      self.knowledge.update_status(data.Status.HEALING)
-    else:
-      self.knowledge.update_status(data.Status.DRIVING)
-
-
+    for data in lidar_data:
+      if self.detect_collision(data):
+        self.knowledge.update_status(data.Status.CRASHED)
+        return
+      elif self.detect_obstacle(data):
+        self.knowledge.update_status(data.Status.HEALING)
+        return
+      else:
+        self.knowledge.update_status(data.Status.DRIVING)
+        return
 
   #Function that is called at time intervals to update ai-state
   def update(self, time_elapsed):
