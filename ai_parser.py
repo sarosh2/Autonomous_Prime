@@ -88,37 +88,45 @@ class Analyser(object):
 
   def detect_collision(self, data):
     # Implement collision detection logic
-    
     if data[0]**2 + data[1]**2 + data[2]**2 < self.collision_threshold:  #threshold
       return True
     return False
 
   def detect_obstacle(self, data):
-    obstacle_detected = False
-    obstacles = []
     distance = data[0]**2 + data[1]**2 + data[2]**2
     if distance < self.healing_threshold:  # Example threshold for obstacles
-      obstacle_detected = True
       obstacle_location = carla.Location(x=data[0], y=data[1], z=data[2])
-      obstacles.append(obstacle_location)
+      return obstacle_location
+    else:
+      return None
 
     self.knowledge.update_data('obstacles', obstacles)
     return obstacle_detected
 
   def analyse_lidar(self):
     lidar_data = self.knowledge.get_lidar_data()
+
     if lidar_data is None:
       print('Lidar data is None')
       return
+
+    obstacles = []
     
     for pdata in lidar_data:
       if self.detect_collision(pdata):
         self.knowledge.update_status(data.Status.CRASHED)
-        
-      elif self.detect_obstacle(pdata):
-        self.knowledge.update_status(data.Status.HEALING)
+        return
       else:
-        self.knowledge.update_status(data.Status.DRIVING)
+        obstacle = self.detect_obstacle(pdata)
+        if obstacle is not None:
+          self.knowledge.update_status(data.Status.HEALING)
+          obstacles.append(obstacle)
+          
+    if len(obstacles) == 0:
+      self.knowledge.update_status(data.Status.DRIVING)
+    else:
+      self.knowledge.update_data('obstacles', obstacles)
+
 
   #Function that is called at time intervals to update ai-state
   def update(self, time_elapsed):
