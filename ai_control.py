@@ -39,6 +39,7 @@ class Executor(object):
   # TODO: steer in the direction of destination and throttle or brake depending on how close we are to destination
   # TODO: Take into account that exiting the crash site could also be done in reverse, so there might need to be additional data passed between planner and executor, or there needs to be some way to tell this that it is ok to drive in reverse during HEALING and CRASHED states. An example is additional_vars, that could be a list with parameters that can tell us which things we can do (for example going in reverse)
   def update_control(self, destination, additional_vars, delta_time):
+    
     #calculate throttle and heading
     target_speed = additional_vars[0] if additional_vars else 1.0
     # Get vehicle's current transform and location
