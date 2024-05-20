@@ -68,7 +68,7 @@ class Executor(object):
 
     # Create vehicle control object
     control = carla.VehicleControl()
-    control.throttle = 0.7  # You might want to adjust this based on distance to destination and current speed
+    control.throttle = 0.5  # You might want to adjust this based on distance to destination and current speed
     control.steer = steer_direction * (angle_to_destination / np.pi)  # Normalize steering angle to [-1, 1]
     control.brake = 0.0
     control.hand_brake = False
@@ -96,7 +96,11 @@ class Planner(object):
     self.knowledge.update_destination(self.get_current_destination())
     print('Planner update called')
     print('Current Status: ', self.knowledge.get_status())
-    print('Obstacles: ', self.knowledge.get_obstacles())
+    obstacles = self.knowledge.get_obstacles()
+    if obstacles is None:
+      obstacles = []
+    
+    print('Obstacles: ',len(obstacles) )
   
   #Update internal state to make sure that there are waypoints to follow and that we have not arrived yet
   def update_plan(self):
@@ -108,8 +112,7 @@ class Planner(object):
     
     if len(self.path) == 0:
       self.knowledge.update_status(Status.ARRIVED)
-    else:
-      self.knowledge.update_status(Status.DRIVING)
+  
 
   #get current destination 
   def get_current_destination(self):

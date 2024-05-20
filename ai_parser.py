@@ -83,19 +83,20 @@ class Analyser(object):
   def __init__(self, knowledge):
     self.knowledge = knowledge
     self.is_lidar_below_threshold = False
-    self.collision_threshold = 1.0
-    self.healing_threshold = 20.0
+    self.collision_threshold = 0.3
+    self.healing_threshold = 2.0
 
   def detect_collision(self, data):
     # Implement collision detection logic
-    if data[0]**2 + data[1]**2 + data[2]**2 < self.collision_threshold:  #threshold
+    if np.sqrt(data[0]**2 + data[1]**2 + data[2]**2) < self.collision_threshold:  #threshold
       return True
     return False
 
   def detect_obstacle(self, data):
-    distance = data[0]**2 + data[1]**2 + data[2]**2
+    distance = np.sqrt(data[0]**2 + data[1]**2 + data[2]**2)
     if distance < self.healing_threshold:  # Example threshold for obstacles
-      obstacle_location = carla.Location(x=data[0], y=data[1], z=data[2])
+      #print('Obstacle detected. : ', data)
+      obstacle_location = data[0:3]
       return obstacle_location
     else:
       return None
