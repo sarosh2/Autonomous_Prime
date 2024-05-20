@@ -100,9 +100,6 @@ class Analyser(object):
     else:
       return None
 
-    self.knowledge.update_data('obstacles', obstacles)
-    return obstacle_detected
-
   def analyse_lidar(self):
     lidar_data = self.knowledge.get_lidar_data()
 
