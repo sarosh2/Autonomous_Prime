@@ -129,6 +129,15 @@ def main():
             if pos.distance(carla.Location(end)) < 5.0:
                 print ("Excercise route finished")
                 running = False
+
+                #stop the car once the test is done
+                control = carla.VehicleControl()
+                control.throttle = 0.0 
+                control.steer = 0.00
+                control.brake = 1.0
+                control.hand_brake = False
+                autopilot.get_vehicle.apply_control(control)
+
             else:
                 autopilot.set_destination(end)
 

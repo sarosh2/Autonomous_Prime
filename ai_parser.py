@@ -15,13 +15,14 @@ except IndexError:
 import weakref
 import carla
 import ai_knowledge as data
+import numpy as np
 
 
 # Monitor is responsible for reading the data from the sensors and telling it to the knowledge
 # TODO: Implement other sensors (lidar and depth sensors mainly)
 # TODO: Use carla API to read whether car is at traffic lights and their status, update it into knowledge
 class Monitor(object):
-  def __init__(self, knowledge,vehicle):
+  def __init__(self, knowledge, vehicle):
     self.vehicle = vehicle
     self.knowledge = knowledge
     weak_self = weakref.ref(self)
@@ -33,6 +34,34 @@ class Monitor(object):
     bp = world.get_blueprint_library().find('sensor.other.lane_invasion')
     self.lane_detector = world.spawn_actor(bp, carla.Transform(), attach_to=self.vehicle)
     self.lane_detector.listen(lambda event: Monitor._on_invasion(weak_self, event))
+
+    #create LIDAR sensor
+    self.setup_lidar(world)
+    
+    #create depth sensor
+
+  #convert lidar information into an np array and send it to knowledge
+  def lidar_callback(self, point_cloud):
+    data = np.copy(np.frombuffer(point_cloud.raw_data, dtype=np.dtype('f4')))
+    data = np.reshape(data, (int(data.shape[0] / 4), 4))
+    self.knowledge.update_data('lidar_data', data)
+
+  def setup_lidar(self, world):
+
+    #setup lidar blueprints and attributes
+    lidar_bp = world.get_blueprint_library().find('sensor.lidar.ray_cast')
+    lidar_bp.set_attribute('range',str(100))
+    lidar_bp.set_attribute('noise_stddvev',str(0.1))
+    lidar_bp.set_attribute('upper_fov',str(15.0))
+    lidar_bp.set_attribute('lower_fov',str(-25.0))
+    lidar_bp.set_attribute('channels',str(64.0))
+    lidar_bp.set_attribute('points_per_second',str(500000))
+    lidar_bp.set_attribute('rotation_frequency',str(20.0))
+    lidar_transform = carla.Transform(carla.Location(z=2))
+
+    #create lidar sensor
+    self.lidar_sensor = world.spawn_actor(lidar_bp, lidar_transform, attach_to=self.vehicle)
+    self.lidar_sensor.listen(self.lidar_callback)
 
   #Function that is called at time intervals to update ai-state
   def update(self, time_elapsed):
