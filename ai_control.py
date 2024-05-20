@@ -94,6 +94,9 @@ class Planner(object):
   def update(self, time_elapsed):
     self.update_plan()
     self.knowledge.update_destination(self.get_current_destination())
+    print('Planner update called')
+    print('Current Status: ', self.knowledge.get_status())
+    print('Obstacles: ', self.knowledge.get_obstacles())
   
   #Update internal state to make sure that there are waypoints to follow and that we have not arrived yet
   def update_plan(self):

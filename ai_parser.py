@@ -84,24 +84,23 @@ class Analyser(object):
     self.knowledge = knowledge
     self.is_lidar_below_threshold = False
     self.collision_threshold = 1.0
-    self.healing_threshold = 3.0
+    self.healing_threshold = 20.0
 
   def detect_collision(self, data):
     # Implement collision detection logic
-    for point in data:
-      if point[0]**2 + point[1]**2 + point[2]**2 < self.collision_threshold:  #threshold
-        return True
+    
+    if data[0]**2 + data[1]**2 + data[2]**2 < self.collision_threshold:  #threshold
+      return True
     return False
 
   def detect_obstacle(self, data):
     obstacle_detected = False
     obstacles = []
-    for point in data:
-      distance = point[0]**2 + point[1]**2 + point[2]**2
-      if distance < self.healing_threshold:  # Example threshold for obstacles
-        obstacle_detected = True
-        obstacle_location = carla.Location(x=point[0], y=point[1], z=point[2])
-        obstacles.append(obstacle_location)
+    distance = data[0]**2 + data[1]**2 + data[2]**2
+    if distance < self.healing_threshold:  # Example threshold for obstacles
+      obstacle_detected = True
+      obstacle_location = carla.Location(x=data[0], y=data[1], z=data[2])
+      obstacles.append(obstacle_location)
 
     self.knowledge.update_data('obstacles', obstacles)
     return obstacle_detected
@@ -109,18 +108,17 @@ class Analyser(object):
   def analyse_lidar(self):
     lidar_data = self.knowledge.get_lidar_data()
     if lidar_data is None:
+      print('Lidar data is None')
       return
     
-    for data in lidar_data:
-      if self.detect_collision(data):
+    for pdata in lidar_data:
+      if self.detect_collision(pdata):
         self.knowledge.update_status(data.Status.CRASHED)
-        return
-      elif self.detect_obstacle(data):
+        
+      elif self.detect_obstacle(pdata):
         self.knowledge.update_status(data.Status.HEALING)
-        return
       else:
         self.knowledge.update_status(data.Status.DRIVING)
-        return
 
   #Function that is called at time intervals to update ai-state
   def update(self, time_elapsed):
