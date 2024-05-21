@@ -31,13 +31,16 @@ class Monitor(object):
     self.knowledge.update_data('rotation', self.vehicle.get_transform().rotation)
 
     world = self.vehicle.get_world()
+    #! check
+    # self.world = world
     bp = world.get_blueprint_library().find('sensor.other.lane_invasion')
     self.lane_detector = world.spawn_actor(bp, carla.Transform(), attach_to=self.vehicle)
     self.lane_detector.listen(lambda event: Monitor._on_invasion(weak_self, event))
 
     #create LIDAR sensor
     self.setup_lidar(world)
-    
+    closest_tf = self.get_nearby_traffic_light(vehicle, 50)
+    self.closest_tf_state = self.get_traffic_light_state(closest_tf)
     #create depth sensor
 
   #convert lidar information into an np array and send it to knowledge
@@ -71,6 +74,7 @@ class Monitor(object):
     vehicle_forward_vector = vehicle_transform.get_forward_vector()
 
     # Get the world the vehicle is in
+    # maybe we dont need this one
     world = vehicle.get_world()
 
     # Get all traffic lights in the world
@@ -105,7 +109,7 @@ class Monitor(object):
     if traffic_light:
         return traffic_light.get_state()
     return None
-
+  
   #Function that is called at time intervals to update ai-state
   def update(self, time_elapsed):
     # Update the position of vehicle into knowledge

@@ -88,6 +88,9 @@ class Knowledge(object):
     def get_obstacles(self):
         return self.retrieve_data("obstacles")
 
+    def get_closest_traffic_light_state(self):
+        return self.get_closest_traffic_light_state
+
     def arrived_at(self, destination):
         return self.distance(self.get_location(), destination) < 5.0
 

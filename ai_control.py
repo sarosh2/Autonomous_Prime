@@ -106,7 +106,7 @@ class Planner(object):
     # Create a map of waypoints to follow to the destination and save it
     def make_plan(self, source, destination):
         self.path = self.build_path(source, destination)
-        print("Planner set path: ", self.path)
+        # print("Planner set path: ", self.path)
         self.update_plan()
         self.knowledge.update_destination(self.get_current_destination())
 
@@ -114,13 +114,13 @@ class Planner(object):
     def update(self, time_elapsed):
         self.update_plan()
         self.knowledge.update_destination(self.get_current_destination())
-        print("Planner update called")
-        print("Current Status: ", self.knowledge.get_status(), 'Current Destination: ', self.knowledge.get_current_destination(), ' Planned Destination: ', self.get_current_destination())
+        # print("Planner update called")
+        # print("Current Status: ", self.knowledge.get_status(), 'Current Destination: ', self.knowledge.get_current_destination(), ' Planned Destination: ', self.get_current_destination())
         obstacles = self.knowledge.get_obstacles()
         if obstacles is None:
             obstacles = []
 
-        print("Obstacles: ", len(obstacles))
+        # print("Obstacles: ", len(obstacles))
 
     # Update internal state to make sure that there are waypoints to follow and that we have not arrived yet
     def update_plan(self):
@@ -177,49 +177,6 @@ class Planner(object):
         # If no detour is possible, return None
         return None
     
-
-    def get_nearby_traffic_light(self, vehicle, distance_threshold=50):
-        # Get the location and forward vector of the vehicle
-        vehicle_location = vehicle.get_location()
-        vehicle_transform = vehicle.get_transform()
-        vehicle_forward_vector = vehicle_transform.get_forward_vector()
-
-        # Get the world the vehicle is in
-        world = vehicle.get_world()
-
-        # Get all traffic lights in the world
-        traffic_lights = world.get_actors().filter('traffic.traffic_light')
-
-        # Find the nearest traffic light within the distance threshold and in front of the vehicle
-        closest_traffic_light = None
-        min_distance = distance_threshold
-
-        for traffic_light in traffic_lights:
-            # Get the location of the traffic light
-            traffic_light_location = traffic_light.get_location()
-
-            # Calculate the distance from the vehicle to the traffic light
-            distance = vehicle_location.distance(traffic_light_location)
-
-            if distance < min_distance:
-                # Calculate the direction vector from the vehicle to the traffic light
-                direction_vector = traffic_light_location - vehicle_location
-                direction_vector = direction_vector.make_unit_vector()
-
-                # Calculate the dot product to check if the traffic light is in front of the vehicle
-                dot_product = direction_vector.x * vehicle_forward_vector.x + direction_vector.y * vehicle_forward_vector.y + direction_vector.z * vehicle_forward_vector.z
-
-                if dot_product > 0:  # Traffic light is in front of the vehicle
-                    closest_traffic_light = traffic_light
-                    min_distance = distance
-
-        return closest_traffic_light
-
-    def get_traffic_light_state(self, traffic_light):
-        if traffic_light:
-            return traffic_light.get_state()
-        return None
-    
     # get current destination
     def get_current_destination(self):
         status = self.knowledge.get_status()
@@ -228,7 +185,13 @@ class Planner(object):
            # n_distance = self.path[0].distance(self.knowledge.get_location())
             #print("Distance To: ", n_distance)
             # TODO: Take into account traffic lights and other cars
-            return self.path[0]
+            tl_value = self.knowledge.get_closest_traffic_light_state()
+            if tl_value == None:
+                return self.path[0]
+            else:
+                print("Theres a tf color", tl_value)
+
+
         if status == Status.ARRIVED:
             return self.knowledge.get_location()
         if status == Status.HEALING:
