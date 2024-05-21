@@ -160,17 +160,21 @@ class Planner(object):
         world_map = world.get_map()
 
         # Get Waypoints from source to destination using Carla's map API
+        print(source)
+        print(destination)
         source_waypoint = world_map.get_waypoint(source.location)
-        destination_waypoint = world_map.get_waypoint(destination.location)
+        destination_waypoint = world_map.get_waypoint(destination)
 
         # Generating Waypoint less than 5 meters (may need to change the condition in knowledge)
         current_waypoint = source_waypoint
         print("Source of the Car: ", current_waypoint)
         print("Destination of the Car: ", destination_waypoint)
-        while current_waypoint.transform.location.distance(destination.location) > 2.5:
-            next_waypoint = current_waypoint.next(2.5)[
+        while current_waypoint.transform.location.distance(destination) > 5.0:
+            next_waypoint = current_waypoint.next(5.0)[
                 0
             ]  # Generate waypoints every 2.5 meters
+            n_distance = next_waypoint.transform.location.distance(destination)
+            print(n_distance)
             self.path.append(next_waypoint.transform.location)
             current_waypoint = next_waypoint
 
