@@ -90,6 +90,9 @@ class Knowledge(object):
 
     def get_obstacles(self):
         return self.retrieve_data("obstacles")
+    
+    def get_target_speed(self):
+        return self.retrieve_data("target_speed")
 
     def arrived_at(self, destination):
         return self.distance(self.get_location(), destination) < 5.0

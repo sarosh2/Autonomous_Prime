@@ -132,11 +132,11 @@ def main():
             carla.Vector3D(22, -4, 1.8431),
             carla.Vector3D(9, -22, 1.8431),
         ]
-        # ex4 = [ carla.Vector3D(42.5959,-4.3443,1.8431), carla.Vector3D(134,-3,1.8431)]
+        ex4 = [ carla.Vector3D(42.5959,-4.3443,1.8431), carla.Vector3D(134,-3,1.8431)]
 
         # kzs2 = carla.Vector3D(-85,-23,1.8431)
 
-        milestones = [ex1, ex2, ex3]
+        milestones = [ex1, ex2, ex3, ex4]
         ms = max(0, min(args.milestone_number - 1, len(milestones) - 1))
         ex = milestones[ms]
         end = ex[len(ex) - 1]
@@ -204,7 +204,7 @@ def main():
             sensor.listen(lambda event: _on_collision(mal, event))
 
             control = carla.VehicleControl()
-            control.throttle = 0.6
+            control.throttle = 0.7
             control.steer = -0.07
             control.brake = 0.0
             control.hand_brake = False

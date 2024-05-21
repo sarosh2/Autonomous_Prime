@@ -54,15 +54,16 @@ class Executor(object):
         self.vehicle.apply_control(control)
 
     def calculate_throttle_from_speed(self):
-        target_speed = self.knowledge.get_data("target_speed")
+        target_speed = self.knowledge.get_target_speed()
         current_speed = self.vehicle.get_velocity().length()
 
         # Calculate throttle based on speed difference
-        throttle = 0.5
+        throttle = 0.4
+        print("Current Speed: ", current_speed)
         if current_speed < target_speed:
-            throttle += 0.5 * (target_speed - current_speed)
+            throttle = throttle + 0.02 * (target_speed - current_speed)
         elif current_speed > target_speed:
-            throttle -= 0.5 * (current_speed - target_speed)
+            throttle = 0.3 - 0.5 * (current_speed - target_speed)
         return throttle
 
     # TODO: steer in the direction of destination and throttle or brake depending on how close we are to destination
@@ -77,8 +78,6 @@ class Executor(object):
             persistent_lines=True,
         )
 
-        # calculate throttle and heading
-        target_speed = additional_vars[0] if additional_vars else 1.0
         # Get vehicle's current transform and location
         vehicle_transform = self.vehicle.get_transform()
         vehicle_location = vehicle_transform.location
@@ -113,16 +112,7 @@ class Executor(object):
         # Create vehicle control object
         control = carla.VehicleControl()
 
-        control.throttle = 0.5
-        if (
-            self.knowledge.get_status() == Status.HEALING
-            and self.knowledge.get_is_vehicle_obstacle()
-        ):
-            control.throttle = 0.0
-            control.brake = 1.0
-            print("Braking")
-        elif self.knowledge.get_status() == Status.HEALING:
-            control.throttle = 0.3
+        control.throttle = self.calculate_throttle_from_speed()
         control.steer = steer_direction * (
             angle_to_destination / np.pi
         )  # Normalize steering angle to [-1, 1]
@@ -234,7 +224,7 @@ class Planner(object):
             # n_distance = self.path[0].distance(self.knowledge.get_location())
             # print("Distance To: ", n_distance)
             # TODO: Take into account traffic lights and other cars
-            self.knowledge.update_data("target_speed", 50)
+            self.knowledge.update_data("target_speed", 8)
             if self.path is None or len(self.path) == 0:
                 return self.knowledge.get_location()
             return self.path[0]
@@ -242,7 +232,7 @@ class Planner(object):
             self.knowledge.update_data("target_speed", 0)
             return self.knowledge.get_location()
         if status == Status.HEALING:
-            self.knowledge.update_data("target_speed", 30)
+            self.knowledge.update_data("target_speed", 0.5)
             # Add new destinations if new obstacles are detected
             obstacles = self.knowledge.get_obstacles()
             for obstacle_location in obstacles:

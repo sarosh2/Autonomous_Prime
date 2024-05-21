@@ -149,7 +149,7 @@ class Analyser(object):
         self.knowledge = knowledge
         self.vehicle = vehicle
         self.is_lidar_below_threshold = False
-        self.obstacle_threshold = 0.9
+        self.obstacle_threshold = 1.0
         self.vehicle_threshold = 10.0
 
     def detect_obstacle(self, data):
