@@ -45,7 +45,6 @@ class Executor(object):
         if status == Status.CRASHED:
             self.handle_crash()
 
-    
     def handle_crash(self):
         control = carla.VehicleControl()
         control.throttle = 0.0
@@ -54,7 +53,17 @@ class Executor(object):
         control.hand_brake = False
         self.vehicle.apply_control(control)
 
+    def calculate_throttle_from_speed(self):
+        target_speed = self.knowledge.get_data("target_speed")
+        current_speed = self.vehicle.get_velocity().length()
 
+        # Calculate throttle based on speed difference
+        throttle = 0.5
+        if current_speed < target_speed:
+            throttle += 0.5 * (target_speed - current_speed)
+        elif current_speed > target_speed:
+            throttle -= 0.5 * (current_speed - target_speed)
+        return throttle
 
     # TODO: steer in the direction of destination and throttle or brake depending on how close we are to destination
     # TODO: Take into account that exiting the crash site could also be done in reverse, so there might need to be additional data passed between planner and executor, or there needs to be some way to tell this that it is ok to drive in reverse during HEALING and CRASHED states. An example is additional_vars, that could be a list with parameters that can tell us which things we can do (for example going in reverse)
@@ -105,7 +114,10 @@ class Executor(object):
         control = carla.VehicleControl()
 
         control.throttle = 0.5
-        if self.knowledge.get_status() == Status.HEALING and self.knowledge.get_is_vehicle_obstacle():
+        if (
+            self.knowledge.get_status() == Status.HEALING
+            and self.knowledge.get_is_vehicle_obstacle()
+        ):
             control.throttle = 0.0
             control.brake = 1.0
             print("Braking")
@@ -143,6 +155,7 @@ class Planner(object):
         obstacles = self.knowledge.get_obstacles()
         if obstacles is None:
             obstacles = []
+
     # Update internal state to make sure that there are waypoints to follow and that we have not arrived yet
     def update_plan(self):
         if len(self.path) == 0:
@@ -221,20 +234,23 @@ class Planner(object):
             # n_distance = self.path[0].distance(self.knowledge.get_location())
             # print("Distance To: ", n_distance)
             # TODO: Take into account traffic lights and other cars
-
+            self.knowledge.update_data("target_speed", 50)
             if self.path is None or len(self.path) == 0:
                 return self.knowledge.get_location()
             return self.path[0]
         if status == Status.ARRIVED:
+            self.knowledge.update_data("target_speed", 0)
             return self.knowledge.get_location()
         if status == Status.HEALING:
-
+            self.knowledge.update_data("target_speed", 30)
             # Add new destinations if new obstacles are detected
             obstacles = self.knowledge.get_obstacles()
             for obstacle_location in obstacles:
                 vehicle_location = self.knowledge.get_location()
                 # print(obstacle)
-                if vehicle_location.distance(obstacle_location) < 3.0:  # Check for nearby obstacles
+                if (
+                    vehicle_location.distance(obstacle_location) < 3.0
+                ):  # Check for nearby obstacles
                     detour_destination = self.calculate_detour(
                         vehicle_location, obstacle_location
                     )
@@ -259,10 +275,10 @@ class Planner(object):
 
     # TODO: Implementation
     # TODO: create path of waypoints from source to destination
-      
+
     def build_path(self, source, destination):
         self.path = deque([])
-        
+
         world = self.vehicle.get_world()
         world_map = world.get_map()
 
@@ -282,23 +298,23 @@ class Planner(object):
                 break
 
             next_waypoint = next_waypoints[0]
-            
-            '''
+
+            """
 
             # Check if lane change is needed
             if next_waypoint.lane_change == carla.LaneChange.Right:
                 possible_waypoint = next_waypoint.get_right_lane()
                 if possible_waypoint and possible_waypoint.lane_type == carla.LaneType.Driving:
                     next_waypoint = possible_waypoint
-            '''
+            """
 
-            '''
+            """
             elif next_waypoint.lane_change == carla.LaneChange.Left:
                 possible_waypoint = next_waypoint.get_left_lane()
                 if possible_waypoint and possible_waypoint.lane_type == carla.LaneType.Driving:
                     next_waypoint = possible_waypoint
             
-            '''
+            """
 
             self.path.append(next_waypoint.transform.location)
             world.debug.draw_string(
