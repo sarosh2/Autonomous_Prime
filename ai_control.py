@@ -39,7 +39,7 @@ class Executor(object):
     def update(self, time_elapsed):
         status = self.knowledge.get_status()
         # TODO: this needs to be able to handle
-        if status == Status.DRIVING:
+        if status == Status.DRIVING or status == Status.HEALING:
             dest = self.knowledge.get_current_destination()
             self.update_control(dest, [1], time_elapsed)
 
@@ -83,7 +83,7 @@ class Executor(object):
 
         # Create vehicle control object
         control = carla.VehicleControl()
-        control.throttle = 0.5  # You might want to adjust this based on distance to destination and current speed
+        control.throttle = 0.6  # You might want to adjust this based on distance to destination and current speed
         control.steer = steer_direction * (
             angle_to_destination / np.pi
         )  # Normalize steering angle to [-1, 1]
@@ -141,9 +141,12 @@ class Planner(object):
         return True
 
     def calculate_detour(self, vehicle_location, obstacle_location):
+        
+        DETOUR_THRESHOLD = 0.5
         # Calculate the direction vector from vehicle to obstacle
         direction_to_obstacle = obstacle_location - vehicle_location
         distance_to_obstacle = direction_to_obstacle.length()
+
 
         # Normalize the direction vector
         direction_to_obstacle /= distance_to_obstacle
@@ -153,21 +156,21 @@ class Planner(object):
         right_direction = carla.Location(direction_to_obstacle.y, -direction_to_obstacle.x, 0)
 
         # Check space on the left
-        left_detour = vehicle_location + left_direction * 1.0  # Adjust the detour distance
+        left_detour = vehicle_location + left_direction * DETOUR_THRESHOLD  # Adjust the detour distance
         if self.is_space_available(left_detour):
             return left_detour
 
         # Check space on the right
-        right_detour = vehicle_location + right_direction * 1.0  # Adjust the detour distance
+        right_detour = vehicle_location + right_direction * DETOUR_THRESHOLD  # Adjust the detour distance
         if self.is_space_available(right_detour):
             return right_detour
 
         # If obstacle is directly in front, try going around it
-        front_left_detour = vehicle_location + direction_to_obstacle * 1.0 + left_direction * 1.0
+        front_left_detour = vehicle_location + direction_to_obstacle * DETOUR_THRESHOLD + left_direction * DETOUR_THRESHOLD
         if self.is_space_available(front_left_detour):
             return front_left_detour
 
-        front_right_detour = vehicle_location + direction_to_obstacle * 1.0 + right_direction * 1.0
+        front_right_detour = vehicle_location + direction_to_obstacle * DETOUR_THRESHOLD + right_direction * DETOUR_THRESHOLD
         if self.is_space_available(front_right_detour):
             return front_right_detour
 
@@ -185,16 +188,21 @@ class Planner(object):
         if status == Status.ARRIVED:
             return self.knowledge.get_location()
         if status == Status.HEALING:
-
+            
             # Add new destinations if new obstacles are detected
             obstacles = self.knowledge.get_obstacles()
             for obstacle in obstacles:
-                if vehicle_location.distance(obstacle) < 1.0:  # Check for nearby obstacles
-                    detour_destination = self.calculate_detour(vehicle_location, obstacle)
+                vehicle_location = self.knowledge.get_location()
+                #print(obstacle)
+                obstacle_location = carla.Location(float(obstacle[0]), float(obstacle[1]), float(obstacle[2]))
+                if vehicle_location.distance(obstacle_location) < 1.0:  # Check for nearby obstacles
+                    detour_destination = self.calculate_detour(vehicle_location, obstacle_location)
                     if detour_destination:
                         self.path.appendleft(detour_destination)
+           
                     else:
-                        self.path.appendleft(self.knowledge.get_destination())
+                       return self.knowledge.get_destination()
+            
             # TODO: Implement crash handling. Probably needs to be done by following waypoint list to exit the crash site.
             # Afterwards needs to remake the path.
             #self.knowledge.update_status(Status.DRIVING
@@ -216,15 +224,22 @@ class Planner(object):
         # Get Waypoints from source to destination using Carla's map API
         source_waypoint = world_map.get_waypoint(source.location)
         destination_waypoint = world_map.get_waypoint(destination)
-
+        
+        
         # Generating Waypoint less than 5 meters (may need to change the condition in knowledge)
         current_waypoint = source_waypoint
+        count = 0
+        PATH_THRESHOLD = 150
         while current_waypoint.transform.location.distance(destination) > 5.0:
-            next_waypoint = current_waypoint.next(5.0)[0]  # Generate waypoints every 2.5 meters
+            next_waypoint = current_waypoint.next(4.5)[0]  # Generate waypoints every 2.5 meters
             self.path.append(next_waypoint.transform.location)
             world.debug.draw_string(current_waypoint.transform.location,'^', draw_shadow = True, color=carla.Color(r=255,g=0,b=0), life_time=600.0, persistent_lines =True)
 
             current_waypoint = next_waypoint
+            count += 1
+            if count > PATH_THRESHOLD:
+                break
+       
 
         self.path.append(destination)
         return self.path

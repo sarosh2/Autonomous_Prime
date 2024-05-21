@@ -117,6 +117,8 @@ def main():
 
         # Getting waypoint to spawn
         start = get_start_point(world, ex[0])
+        world.debug.draw_string(destination,'^', draw_shadow = True, color=carla.Color(r=0,g=0,b=255), life_time=600.0, persistent_lines =True)
+
         # Spawning
         vehicle = try_spawn_random_vehicle_at(start.transform, "vehicle.nissan.micra")
 
@@ -145,6 +147,7 @@ def main():
         autopilot.set_destination(destination)
         autopilot.set_route_finished_callback(route_finished)
 
+
         if ms == 1:
             print("Spawning malicious actor...")
             spawn = start.get_right_lane()
@@ -164,7 +167,7 @@ def main():
             sensor.listen(lambda event: _on_collision(mal, event))
                 
             control = carla.VehicleControl()
-            control.throttle = 1.0 
+            control.throttle = 0.65
             control.steer = -0.07
             control.brake = 0.0
             control.hand_brake = False
