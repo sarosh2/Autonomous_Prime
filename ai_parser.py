@@ -42,6 +42,15 @@ class Monitor(object):
             bp, carla.Transform(), attach_to=self.vehicle
         )
         self.lane_detector.listen(lambda event: Monitor._on_invasion(weak_self, event))
+        # Adding a Collision Detector
+        self.collision_sensor = world.spawn_actor(
+            world.get_blueprint_library().find("sensor.other.collision"),
+            carla.Transform(),
+            attach_to=self.vehicle,
+        )
+        self.collision_sensor.listen(
+            lambda event: self.knowledge.update_status(data.Status.CRASHED)
+        )
 
         # create LIDAR sensor
         self.setup_lidar(world)
@@ -136,29 +145,32 @@ class Monitor(object):
 # Analyser is responsible for parsing all the data that the knowledge has received from Monitor and turning it into something usable
 # TODO: During the update step parse the data inside knowledge into information that could be used by planner to plan the route
 class Analyser(object):
-    def __init__(self, knowledge):
+    def __init__(self, knowledge, vehicle):
         self.knowledge = knowledge
+        self.vehicle = vehicle
         self.is_lidar_below_threshold = False
-        self.collision_threshold = 0.5
-        self.healing_threshold = 2.5
-
-    def detect_collision(self, data):
-        # Implement collision detection logic
-        if (
-            np.sqrt(data[0] ** 2 + data[1] ** 2 + data[2] ** 2)
-            < self.collision_threshold
-        ):  # threshold
-            return True
-        return False
+        self.obstacle_threshold = 1.4
+        self.vehicle_threshold = 0.6
 
     def detect_obstacle(self, data):
         distance = np.sqrt(data[0] ** 2 + data[1] ** 2 + data[2] ** 2)
-        if distance < self.healing_threshold:  # Example threshold for obstacles
+        if distance < self.obstacle_threshold:  # Example threshold for obstacles
             # print('Obstacle detected. : ', data)
             obstacle_location = data[0:3]
             return obstacle_location
         else:
             return None
+
+    def is_vehicle(self, obstacle_location):
+        world = self.vehicle.get_world()
+        vehicles = world.get_actors().filter("vehicle.*")
+
+        for vehicle in vehicles:
+            vehicle_location = vehicle.get_transform().location
+            distance = obstacle_location.distance(vehicle_location)
+            if distance < self.vehicle_threshold:
+                return True
+        return False
 
     def analyse_lidar(self):
         lidar_data = self.knowledge.get_lidar_data()
@@ -168,25 +180,30 @@ class Analyser(object):
             return
 
         obstacles = []
+        is_vehicle = False
 
         for pdata in lidar_data:
-            if self.detect_collision(pdata):
-                self.knowledge.update_status(data.Status.CRASHED)
-                return
-            else:
-                obstacle = self.detect_obstacle(pdata)
-                if obstacle is not None:
-                    self.knowledge.update_status(data.Status.HEALING)
-                    obstacles.append(obstacle)
+            obstacle = self.detect_obstacle(pdata)
+            if obstacle is not None:
+                if self.is_vehicle(obstacle):
+                    is_vehicle = True
+                    break
+                # self.knowledge.update_status(data.Status.HEALING)
+                obstacles.append(obstacle)
 
         if len(obstacles) == 0:
             self.knowledge.update_status(data.Status.DRIVING)
         else:
+            if is_vehicle:
+                self.knowledge.update_status(data.Status.CRASHED)
+                self.knowledge.update_data("is_vehicle", True)
             self.knowledge.update_data("obstacles", obstacles)
 
     # Function that is called at time intervals to update ai-state
     def update(self, time_elapsed):
         print("Analyser update called")
+        if self.knowledge.get_status() == data.Status.CRASHED:
+            return
         self.analyse_lidar()
         print("Lidar Data from Knowledge: ", self.knowledge.get_status())
         return
