@@ -85,6 +85,9 @@ class Knowledge(object):
     def get_lidar_data(self):
         return self.retrieve_data("lidar_data")
 
+    def get_desired_speed(self):
+        return self.retrieve_data("desired_speed")
+
     def get_obstacles(self):
         return self.retrieve_data("obstacles")
 
