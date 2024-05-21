@@ -90,7 +90,10 @@ class Executor(object):
 
         # Create vehicle control object
         control = carla.VehicleControl()
-        control.throttle = 0.6  # You might want to adjust this based on distance to destination and current speed
+
+        control.throttle = 0.55
+        if self.knowledge.get_status() == Status.HEALING:
+            control.throttle = 0.2  # Reduce speed when healing
         control.steer = steer_direction * (
             angle_to_destination / np.pi
         )  # Normalize steering angle to [-1, 1]
@@ -113,7 +116,6 @@ class Planner(object):
     # Create a map of waypoints to follow to the destination and save it
     def make_plan(self, source, destination):
         self.path = self.build_path(source, destination)
-        print("Planner set path: ", self.path)
         self.update_plan()
         self.knowledge.update_destination(self.get_current_destination())
 
@@ -121,7 +123,6 @@ class Planner(object):
     def update(self, time_elapsed):
         self.update_plan()
         self.knowledge.update_destination(self.get_current_destination())
-        print("Planner update called")
         print(
             "Current Status: ",
             self.knowledge.get_status(),
@@ -129,13 +130,13 @@ class Planner(object):
             self.knowledge.get_current_destination(),
             " Planned Destination: ",
             self.get_current_destination(),
+            end = ' '
         )
         obstacles = self.knowledge.get_obstacles()
         if obstacles is None:
             obstacles = []
 
         print("Obstacles: ", len(obstacles))
-
     # Update internal state to make sure that there are waypoints to follow and that we have not arrived yet
     def update_plan(self):
         if len(self.path) == 0:
@@ -156,7 +157,7 @@ class Planner(object):
 
     def calculate_detour(self, vehicle_location, obstacle_location):
 
-        DETOUR_THRESHOLD = 0.5
+        DETOUR_THRESHOLD = 0.8
         # Calculate the direction vector from vehicle to obstacle
         direction_to_obstacle = obstacle_location - vehicle_location
         distance_to_obstacle = direction_to_obstacle.length()
@@ -214,6 +215,9 @@ class Planner(object):
             # n_distance = self.path[0].distance(self.knowledge.get_location())
             # print("Distance To: ", n_distance)
             # TODO: Take into account traffic lights and other cars
+
+            if self.path is None or len(self.path) == 0:
+                return self.knowledge.get_location()
             return self.path[0]
         if status == Status.ARRIVED:
             return self.knowledge.get_location()
@@ -227,9 +231,7 @@ class Planner(object):
                 obstacle_location = carla.Location(
                     float(obstacle[0]), float(obstacle[1]), float(obstacle[2])
                 )
-                if (
-                    vehicle_location.distance(obstacle_location) < 1.0
-                ):  # Check for nearby obstacles
+                if vehicle_location.distance(obstacle_location) < 3.0:  # Check for nearby obstacles
                     detour_destination = self.calculate_detour(
                         vehicle_location, obstacle_location
                     )
@@ -242,6 +244,8 @@ class Planner(object):
             # TODO: Implement crash handling. Probably needs to be done by following waypoint list to exit the crash site.
             # Afterwards needs to remake the path.
             # self.knowledge.update_status(Status.DRIVING
+            if self.path is None or len(self.path) == 0:
+                return self.knowledge.get_location()
             return self.path[0]
         if status == Status.CRASHED:
             # TODO: implement function for crash handling, should provide map of wayoints to move towards to for exiting crash state.
@@ -252,6 +256,7 @@ class Planner(object):
 
     # TODO: Implementation
     # TODO: create path of waypoints from source to destination
+      
     def build_path(self, source, destination):
         self.path = deque([])
         world = self.vehicle.get_world()
@@ -261,17 +266,39 @@ class Planner(object):
         source_waypoint = world_map.get_waypoint(source.location)
         destination_waypoint = world_map.get_waypoint(destination)
 
-        # Generating Waypoint less than 5 meters (may need to change the condition in knowledge)
+        # Generating Waypoints with less than 5 meters interval
         current_waypoint = source_waypoint
         count = 0
-        PATH_THRESHOLD = 150
-        while current_waypoint.transform.location.distance(destination) > 5.0:
-            next_waypoint = current_waypoint.next(4.5)[
-                0
-            ]  # Generate waypoints every 2.5 meters
+        PATH_THRESHOLD = source.location.distance(destination) / 5 + 10
+
+        while current_waypoint.transform.location.distance(destination) > 5.5:
+            next_waypoints = current_waypoint.next(5.49)
+
+            if len(next_waypoints) == 0:
+                break
+
+            next_waypoint = next_waypoints[0]
+            
+            '''
+
+            # Check if lane change is needed
+            if next_waypoint.lane_change == carla.LaneChange.Right:
+                possible_waypoint = next_waypoint.get_right_lane()
+                if possible_waypoint and possible_waypoint.lane_type == carla.LaneType.Driving:
+                    next_waypoint = possible_waypoint
+            '''
+
+            '''
+            elif next_waypoint.lane_change == carla.LaneChange.Left:
+                possible_waypoint = next_waypoint.get_left_lane()
+                if possible_waypoint and possible_waypoint.lane_type == carla.LaneType.Driving:
+                    next_waypoint = possible_waypoint
+            
+            '''
+
             self.path.append(next_waypoint.transform.location)
             world.debug.draw_string(
-                current_waypoint.transform.location,
+                next_waypoint.transform.location,
                 "^",
                 draw_shadow=True,
                 color=carla.Color(r=255, g=0, b=0),

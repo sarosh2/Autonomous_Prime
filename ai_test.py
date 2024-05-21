@@ -163,7 +163,7 @@ def main():
         def route_finished(autopilot):
             pos = autopilot.get_vehicle().get_transform().location
             print("Vehicle arrived at destination: ", pos)
-            if pos.distance(carla.Location(end)) < 5.0:
+            if pos.distance(carla.Location(end)) < 6.0:
                 print("Excercise route finished")
                 running = False
 

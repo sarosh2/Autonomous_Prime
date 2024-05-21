@@ -89,10 +89,10 @@ class Knowledge(object):
         return self.retrieve_data("obstacles")
 
     def arrived_at(self, destination):
-        return self.distance(self.get_location(), destination) < 5.0
+        return self.distance(self.get_location(), destination) < 6.0
 
     def update_destination(self, new_destination):
-        if self.distance(self.destination, new_destination) > 4.95:
+        if self.distance(self.destination, new_destination) > 5.0:
             self.destination = new_destination
             self.destination_changed(new_destination)
 

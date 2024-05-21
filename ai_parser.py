@@ -140,7 +140,7 @@ class Analyser(object):
         self.knowledge = knowledge
         self.is_lidar_below_threshold = False
         self.collision_threshold = 0.5
-        self.healing_threshold = 3.0
+        self.healing_threshold = 2.5
 
     def detect_collision(self, data):
         # Implement collision detection logic
