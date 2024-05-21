@@ -24,24 +24,45 @@ except IndexError:
 import carla
 import ai_knowledge as data
 from ai_knowledge import Status
+import numpy as np
 
 
 # Executor is responsible for moving the vehicle around
 # In this implementation it only needs to match the steering and speed so that we arrive at provided waypoints
 # BONUS TODO: implement different speed limits so that planner would also provide speed target speed in addition to direction
+
+class PIDController:
+    def __init__(self, kp, ki, kd):
+        self.kp = kp
+        self.ki = ki
+        self.kd = kd
+        self.integral = 0
+        self.prev_error = 0
+
+    def compute(self, error, delta_time):
+        self.integral += error * delta_time
+        derivative = (error - self.prev_error) / delta_time
+        output = self.kp * error + self.ki * self.integral + self.kd * derivative
+        self.prev_error = error
+        return output
+
+
 class Executor(object):
     def __init__(self, knowledge, vehicle):
         self.vehicle = vehicle
         self.knowledge = knowledge
         self.target_pos = knowledge.get_location()
 
-    # Update the executor at some intervals to steer the car in desired direction
+        # PID controllers for longitudinal and lateral control
+        self.longitudinal_pid = PIDController(0.14, 0.00002, 0.0)
+        self.lateral_pid = PIDController(0.14, 0.0002, 0.0)
+
+    # Update the executor at some intervals to steer the car in the desired direction
     def update(self, time_elapsed):
         status = self.knowledge.get_status()
-        # TODO: this needs to be able to handle
         if status == Status.DRIVING or status == Status.HEALING:
             dest = self.knowledge.get_current_destination()
-            self.update_control(dest, [1], time_elapsed)
+            self.update_control(dest, time_elapsed)
         if status == Status.CRASHED:
             self.handle_crash()
 
@@ -53,22 +74,7 @@ class Executor(object):
         control.hand_brake = False
         self.vehicle.apply_control(control)
 
-    def calculate_throttle_from_speed(self):
-        target_speed = self.knowledge.get_target_speed()
-        current_speed = self.vehicle.get_velocity().length()
-
-        # Calculate throttle based on speed difference
-        throttle = 0.4
-        print("Current Speed: ", current_speed)
-        if current_speed < target_speed:
-            throttle = throttle + 0.02 * (target_speed - current_speed)
-        elif current_speed > target_speed:
-            throttle = 0.3 - 0.5 * (current_speed - target_speed)
-        return throttle
-
-    # TODO: steer in the direction of destination and throttle or brake depending on how close we are to destination
-    # TODO: Take into account that exiting the crash site could also be done in reverse, so there might need to be additional data passed between planner and executor, or there needs to be some way to tell this that it is ok to drive in reverse during HEALING and CRASHED states. An example is additional_vars, that could be a list with parameters that can tell us which things we can do (for example going in reverse)
-    def update_control(self, destination, additional_vars, delta_time):
+    def update_control(self, destination, delta_time):
         self.vehicle.get_world().debug.draw_string(
             destination,
             "*",
@@ -89,17 +95,14 @@ class Executor(object):
 
         # Calculate the vector from the vehicle to the destination
         vector_to_destination = destination_pos - vehicle_pos
-        vector_to_destination_normalized = vector_to_destination / np.linalg.norm(
-            vector_to_destination
-        )
+        distance_to_destination = np.linalg.norm(vector_to_destination)
+        vector_to_destination_normalized = vector_to_destination / distance_to_destination
 
         # Get vehicle's forward vector
-        forward_vector = np.array(
-            [
-                np.cos(np.radians(vehicle_rotation.yaw)),
-                np.sin(np.radians(vehicle_rotation.yaw)),
-            ]
-        )
+        forward_vector = np.array([
+            np.cos(np.radians(vehicle_rotation.yaw)),
+            np.sin(np.radians(vehicle_rotation.yaw))
+        ])
 
         # Dot product and cross product to find the angle to the destination
         dot_product = np.dot(forward_vector, vector_to_destination_normalized)
@@ -109,19 +112,33 @@ class Executor(object):
         angle_to_destination = np.arccos(np.clip(dot_product, -1.0, 1.0))
         steer_direction = np.sign(cross_product)
 
+        # Calculate speed deviation (longitudinal control)
+        current_speed = np.linalg.norm([
+            self.vehicle.get_velocity().x,
+            self.vehicle.get_velocity().y
+        ])
+        target_speed = self.knowledge.get_target_speed()
+        speed_error = target_speed - current_speed
+
+        throttle_brake = self.longitudinal_pid.compute(speed_error, delta_time)
+        throttle = max(0.0, throttle_brake)
+        brake = max(0.0, -throttle_brake)
+
+        # Calculate steering deviation (lateral control)
+        angular_error = steer_direction * angle_to_destination
+        steer = self.lateral_pid.compute(angular_error, delta_time)
+
         # Create vehicle control object
         control = carla.VehicleControl()
-
-        control.throttle = self.calculate_throttle_from_speed()
-        control.steer = steer_direction * (
-            angle_to_destination / np.pi
-        )  # Normalize steering angle to [-1, 1]
-        control.brake = 0.0
+        control.throttle = throttle
+        control.brake = brake
+        control.steer = np.clip(steer, -1.0, 1.0)
         control.hand_brake = False
 
-        # Apply the control to the vehicle
-        self.vehicle.apply_control(control)
+        if self.knowledge.get_status() == Status.HEALING:
+            control.throttle = min(control.throttle, 0.1)  # Reduce speed when healing
 
+        self.vehicle.apply_control(control)
 
 # Planner is responsible for creating a plan for moving around
 # In our case it creates a list of waypoints to follow so that vehicle arrives at destination
