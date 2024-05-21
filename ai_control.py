@@ -225,12 +225,9 @@ class Planner(object):
 
             # Add new destinations if new obstacles are detected
             obstacles = self.knowledge.get_obstacles()
-            for obstacle in obstacles:
+            for obstacle_location in obstacles:
                 vehicle_location = self.knowledge.get_location()
                 # print(obstacle)
-                obstacle_location = carla.Location(
-                    float(obstacle[0]), float(obstacle[1]), float(obstacle[2])
-                )
                 if vehicle_location.distance(obstacle_location) < 3.0:  # Check for nearby obstacles
                     detour_destination = self.calculate_detour(
                         vehicle_location, obstacle_location

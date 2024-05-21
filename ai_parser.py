@@ -149,14 +149,14 @@ class Analyser(object):
         self.knowledge = knowledge
         self.vehicle = vehicle
         self.is_lidar_below_threshold = False
-        self.obstacle_threshold = 1.4
-        self.vehicle_threshold = 0.6
+        self.obstacle_threshold = 3.0
+        self.vehicle_threshold = 2.0
 
     def detect_obstacle(self, data):
         distance = np.sqrt(data[0] ** 2 + data[1] ** 2 + data[2] ** 2)
         if distance < self.obstacle_threshold:  # Example threshold for obstacles
             # print('Obstacle detected. : ', data)
-            obstacle_location = data[0:3]
+            obstacle_location = carla.Location(float(data[0]), float(data[1]), float(data[2]))
             return obstacle_location
         else:
             return None
