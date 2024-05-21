@@ -42,6 +42,19 @@ class Executor(object):
         if status == Status.DRIVING or status == Status.HEALING:
             dest = self.knowledge.get_current_destination()
             self.update_control(dest, [1], time_elapsed)
+        if status == Status.CRASHED:
+            self.handle_crash()
+
+    
+    def handle_crash(self):
+        control = carla.VehicleControl()
+        control.throttle = 0.0
+        control.steer = 0.0
+        control.brake = 1.0
+        control.hand_brake = False
+        self.vehicle.apply_control(control)
+
+
 
     # TODO: steer in the direction of destination and throttle or brake depending on how close we are to destination
     # TODO: Take into account that exiting the crash site could also be done in reverse, so there might need to be additional data passed between planner and executor, or there needs to be some way to tell this that it is ok to drive in reverse during HEALING and CRASHED states. An example is additional_vars, that could be a list with parameters that can tell us which things we can do (for example going in reverse)
@@ -91,9 +104,13 @@ class Executor(object):
         # Create vehicle control object
         control = carla.VehicleControl()
 
-        control.throttle = 0.55
-        if self.knowledge.get_status() == Status.HEALING:
-            control.throttle = 0.2  # Reduce speed when healing
+        control.throttle = 0.5
+        if self.knowledge.get_status() == Status.HEALING and self.knowledge.get_is_vehicle_obstacle():
+            control.throttle = 0.0
+            control.brake = 1.0
+            print("Braking")
+        elif self.knowledge.get_status() == Status.HEALING:
+            control.throttle = 0.3
         control.steer = steer_direction * (
             angle_to_destination / np.pi
         )  # Normalize steering angle to [-1, 1]
@@ -123,20 +140,9 @@ class Planner(object):
     def update(self, time_elapsed):
         self.update_plan()
         self.knowledge.update_destination(self.get_current_destination())
-        print(
-            "Current Status: ",
-            self.knowledge.get_status(),
-            "Current Destination: ",
-            self.knowledge.get_current_destination(),
-            " Planned Destination: ",
-            self.get_current_destination(),
-            end = ' '
-        )
         obstacles = self.knowledge.get_obstacles()
         if obstacles is None:
             obstacles = []
-
-        print("Obstacles: ", len(obstacles))
     # Update internal state to make sure that there are waypoints to follow and that we have not arrived yet
     def update_plan(self):
         if len(self.path) == 0:
@@ -236,7 +242,7 @@ class Planner(object):
                         self.path.appendleft(detour_destination)
 
                     else:
-                        return self.knowledge.get_destination()
+                        return self.knowledge.get_location()
 
             # TODO: Implement crash handling. Probably needs to be done by following waypoint list to exit the crash site.
             # Afterwards needs to remake the path.
@@ -256,6 +262,7 @@ class Planner(object):
       
     def build_path(self, source, destination):
         self.path = deque([])
+        
         world = self.vehicle.get_world()
         world_map = world.get_map()
 
@@ -268,8 +275,8 @@ class Planner(object):
         count = 0
         PATH_THRESHOLD = source.location.distance(destination) / 5 + 10
 
-        while current_waypoint.transform.location.distance(destination) > 5.5:
-            next_waypoints = current_waypoint.next(5.49)
+        while current_waypoint.transform.location.distance(destination) > 5.01:
+            next_waypoints = current_waypoint.next(5.0)
 
             if len(next_waypoints) == 0:
                 break

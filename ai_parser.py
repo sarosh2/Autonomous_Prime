@@ -67,12 +67,12 @@ class Monitor(object):
 
         # setup lidar blueprints and attributes
         lidar_bp = world.get_blueprint_library().find("sensor.lidar.ray_cast")
-        lidar_bp.set_attribute("range", str(100))
+        lidar_bp.set_attribute("range", str(30))
         lidar_bp.set_attribute("noise_stddev", str(0.1))
         lidar_bp.set_attribute("upper_fov", str(15.0))
         lidar_bp.set_attribute("lower_fov", str(-25.0))
         lidar_bp.set_attribute("channels", str(64.0))
-        lidar_bp.set_attribute("points_per_second", str(500000))
+        lidar_bp.set_attribute("points_per_second", str(50000))
         lidar_bp.set_attribute("rotation_frequency", str(20.0))
         lidar_transform = carla.Transform(carla.Location(z=2))
 
@@ -149,27 +149,32 @@ class Analyser(object):
         self.knowledge = knowledge
         self.vehicle = vehicle
         self.is_lidar_below_threshold = False
-        self.obstacle_threshold = 3.0
-        self.vehicle_threshold = 2.0
+        self.obstacle_threshold = 0.9
+        self.vehicle_threshold = 10.0
 
     def detect_obstacle(self, data):
-        distance = np.sqrt(data[0] ** 2 + data[1] ** 2 + data[2] ** 2)
+        distance = self.get_distance(data)
         if distance < self.obstacle_threshold:  # Example threshold for obstacles
             # print('Obstacle detected. : ', data)
             obstacle_location = carla.Location(float(data[0]), float(data[1]), float(data[2]))
             return obstacle_location
         else:
             return None
+    
+    def get_distance(self, pdata):
+        return np.sqrt(pdata[0] ** 2 + pdata[1] ** 2)
 
-    def is_vehicle(self, obstacle_location):
+    def is_vehicle_obstacle(self, pdata):
         world = self.vehicle.get_world()
+        obstacle_location = carla.Location(float(pdata[0]), float(pdata[1]), float(pdata[2]))
         vehicles = world.get_actors().filter("vehicle.*")
 
         for vehicle in vehicles:
-            vehicle_location = vehicle.get_transform().location
-            distance = obstacle_location.distance(vehicle_location)
-            if distance < self.vehicle_threshold:
-                return True
+            if vehicle.id != self.vehicle.id:
+              vehicle_location = vehicle.get_transform().location
+              distance = obstacle_location.distance(vehicle_location)
+              if distance < 2.0:
+                  return True
         return False
 
     def analyse_lidar(self):
@@ -183,25 +188,28 @@ class Analyser(object):
         is_vehicle = False
 
         for pdata in lidar_data:
+          
+            if self.get_distance(pdata) < self.vehicle_threshold:
+                #clear
+                #print(" Checking for vehicle")
+                if self.is_vehicle_obstacle(pdata):
+                  is_vehicle = True
+                  print("Vehicle detected")
+                  obstacles.append(carla.Location(float(pdata[0]), float(pdata[1]), float(pdata[2])))
+                  break
             obstacle = self.detect_obstacle(pdata)
             if obstacle is not None:
-                if self.is_vehicle(obstacle):
-                    is_vehicle = True
-                    break
-                # self.knowledge.update_status(data.Status.HEALING)
                 obstacles.append(obstacle)
 
         if len(obstacles) == 0:
             self.knowledge.update_status(data.Status.DRIVING)
         else:
-            if is_vehicle:
-                self.knowledge.update_status(data.Status.CRASHED)
-                self.knowledge.update_data("is_vehicle", True)
+            self.knowledge.update_data("is_vehicle", is_vehicle)
             self.knowledge.update_data("obstacles", obstacles)
+            self.knowledge.update_status(data.Status.HEALING)
 
     # Function that is called at time intervals to update ai-state
     def update(self, time_elapsed):
-        print("Analyser update called")
         if self.knowledge.get_status() == data.Status.CRASHED:
             return
         self.analyse_lidar()

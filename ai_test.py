@@ -173,7 +173,10 @@ def main():
                 control.steer = 0.00
                 control.brake = 1.0
                 control.hand_brake = False
-                vehicle.apply_control(control)
+                autopilot.get_vehicle().apply_control(control)
+                time.sleep(50)
+
+
 
             else:
                 autopilot.set_destination(end)
@@ -201,7 +204,7 @@ def main():
             sensor.listen(lambda event: _on_collision(mal, event))
 
             control = carla.VehicleControl()
-            control.throttle = 0.65
+            control.throttle = 0.6
             control.steer = -0.07
             control.brake = 0.0
             control.hand_brake = False
@@ -219,6 +222,7 @@ def main():
                 ctr = 0
 
             # print ("distance: ", vehicle.get_transform().location.distance(carla.Location(ex1[2])))
+        time.sleep(2)
 
     finally:
 
