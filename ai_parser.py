@@ -39,8 +39,13 @@ class Monitor(object):
 
     #create LIDAR sensor
     self.setup_lidar(world)
-    closest_tf = self.get_nearby_traffic_light(vehicle, 50)
-    self.closest_tf_state = self.get_traffic_light_state(closest_tf)
+
+    # Checking traffic light state
+    closest_tl = self.get_nearby_traffic_light(vehicle, world, 50000)
+    # TODO check below line code implementation
+    self.knowledge.update_data("traffic_light_value", self.get_traffic_light_state(closest_tl))
+    # self.knowledge.memory["traffic_light_value"] = self.get_traffic_light_state(closest_tl)
+
     #create depth sensor
 
   #convert lidar information into an np array and send it to knowledge
@@ -67,19 +72,16 @@ class Monitor(object):
     self.lidar_sensor = world.spawn_actor(lidar_bp, lidar_transform, attach_to=self.vehicle)
     self.lidar_sensor.listen(self.lidar_callback)
 
-  def get_nearby_traffic_light(self, vehicle, distance_threshold=50):
+  def get_nearby_traffic_light(self, vehicle, world, distance_threshold=50):
+    print("Check flag ai parser")
     # Get the location and forward vector of the vehicle
     vehicle_location = vehicle.get_location()
     vehicle_transform = vehicle.get_transform()
     vehicle_forward_vector = vehicle_transform.get_forward_vector()
 
-    # Get the world the vehicle is in
-    # maybe we dont need this one
-    world = vehicle.get_world()
-
     # Get all traffic lights in the world
     traffic_lights = world.get_actors().filter('traffic.traffic_light')
-
+    print("len of traffic lights", len(traffic_lights))
     # Find the nearest traffic light within the distance threshold and in front of the vehicle
     closest_traffic_light = None
     min_distance = distance_threshold
@@ -107,6 +109,7 @@ class Monitor(object):
 
   def get_traffic_light_state(self, traffic_light):
     if traffic_light:
+        print("checking state", traffic_light.get_state())
         return traffic_light.get_state()
     return None
   
@@ -176,5 +179,7 @@ class Analyser(object):
   def update(self, time_elapsed):
     print('Analyser update called')
     self.analyse_lidar()
+    print()
+    print("Traffic light value from Knowledge:", self.knowledge.get_closest_traffic_light_state())
     print('Lidar Data from Knowledge: ', self.knowledge.get_status())
     return

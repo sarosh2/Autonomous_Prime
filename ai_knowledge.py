@@ -38,6 +38,7 @@ class Knowledge(object):
             "location": carla.Vector3D(0.0, 0.0, 0.0),
             "rotation": carla.Rotation(0.0, 0.0, 0.0),
             "lidar_data": None,
+            "traffic_light_value": None
         }
         self.destination = self.get_location()
         self.status_changed = lambda *_, **__: None
@@ -89,7 +90,8 @@ class Knowledge(object):
         return self.retrieve_data("obstacles")
 
     def get_closest_traffic_light_state(self):
-        return self.get_closest_traffic_light_state
+      print("ai knowledge check")
+      return self.retrieve_data("traffic_light_value")
 
     def arrived_at(self, destination):
         return self.distance(self.get_location(), destination) < 5.0

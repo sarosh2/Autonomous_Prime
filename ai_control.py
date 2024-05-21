@@ -186,10 +186,11 @@ class Planner(object):
             #print("Distance To: ", n_distance)
             # TODO: Take into account traffic lights and other cars
             tl_value = self.knowledge.get_closest_traffic_light_state()
+            print("control tl value", tl_value)
             if tl_value == None:
                 return self.path[0]
             else:
-                print("Theres a tf color", tl_value)
+                print("Theres a tf of color", tl_value)
 
 
         if status == Status.ARRIVED:
