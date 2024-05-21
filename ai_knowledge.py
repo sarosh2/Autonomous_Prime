@@ -92,7 +92,7 @@ class Knowledge(object):
         return self.distance(self.get_location(), destination) < 5.0
 
     def update_destination(self, new_destination):
-        if self.distance(self.destination, new_destination) < 5.0:
+        if self.distance(self.destination, new_destination) > 4.95:
             self.destination = new_destination
             self.destination_changed(new_destination)
 

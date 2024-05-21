@@ -46,6 +46,7 @@ class Executor(object):
     # TODO: steer in the direction of destination and throttle or brake depending on how close we are to destination
     # TODO: Take into account that exiting the crash site could also be done in reverse, so there might need to be additional data passed between planner and executor, or there needs to be some way to tell this that it is ok to drive in reverse during HEALING and CRASHED states. An example is additional_vars, that could be a list with parameters that can tell us which things we can do (for example going in reverse)
     def update_control(self, destination, additional_vars, delta_time):
+        self.vehicle.get_world().debug.draw_string(destination,'*', draw_shadow = True, color=carla.Color(r=0,g=255,b=0), life_time=600.0, persistent_lines =True)
 
         # calculate throttle and heading
         target_speed = additional_vars[0] if additional_vars else 1.0
@@ -114,7 +115,7 @@ class Planner(object):
         self.update_plan()
         self.knowledge.update_destination(self.get_current_destination())
         print("Planner update called")
-        print("Current Status: ", self.knowledge.get_status())
+        print("Current Status: ", self.knowledge.get_status(), 'Current Destination: ', self.knowledge.get_current_destination(), ' Planned Destination: ', self.get_current_destination())
         obstacles = self.knowledge.get_obstacles()
         if obstacles is None:
             obstacles = []
@@ -137,8 +138,8 @@ class Planner(object):
         status = self.knowledge.get_status()
         # if we are driving, then the current destination is next waypoint
         if status == Status.DRIVING:
-            n_distance = self.path[-1].distance(self.knowledge.get_location())
-            print("Distance To: ", n_distance)
+           # n_distance = self.path[0].distance(self.knowledge.get_location())
+            #print("Distance To: ", n_distance)
             # TODO: Take into account traffic lights and other cars
             return self.path[0]
         if status == Status.ARRIVED:
@@ -146,7 +147,9 @@ class Planner(object):
         if status == Status.HEALING:
             # TODO: Implement crash handling. Probably needs to be done by following waypoint list to exit the crash site.
             # Afterwards needs to remake the path.
-            return self.knowledge.get_location()
+            #self.knowledge.update_status(Status.DRIVING)
+            to_return = self.knowledge.get_location()
+            return to_return
         if status == Status.CRASHED:
             # TODO: implement function for crash handling, should provide map of wayoints to move towards to for exiting crash state.
             # You should use separate waypoint list for that, to not mess with the original path.
@@ -170,6 +173,8 @@ class Planner(object):
         while current_waypoint.transform.location.distance(destination) > 5.0:
             next_waypoint = current_waypoint.next(5.0)[0]  # Generate waypoints every 2.5 meters
             self.path.append(next_waypoint.transform.location)
+            world.debug.draw_string(current_waypoint.transform.location,'^', draw_shadow = True, color=carla.Color(r=255,g=0,b=0), life_time=600.0, persistent_lines =True)
+
             current_waypoint = next_waypoint
 
         self.path.append(destination)
