@@ -34,50 +34,29 @@ class Executor(object):
         self.vehicle = vehicle
         self.knowledge = knowledge
         self.target_pos = knowledge.get_location()
-        self.integral = 0
-        self.previous_error = 0
 
     # Update the executor at some intervals to steer the car in desired direction
     def update(self, time_elapsed):
         status = self.knowledge.get_status()
         # TODO: this needs to be able to handle
-        if status == Status.DRIVING:
+        if status == Status.DRIVING or status == Status.HEALING:
             dest = self.knowledge.get_current_destination()
-            self.update_control(dest, [self.knowledge.get_desired_speed], time_elapsed)
+            self.update_control(dest, [1], time_elapsed)
 
     # TODO: steer in the direction of destination and throttle or brake depending on how close we are to destination
     # TODO: Take into account that exiting the crash site could also be done in reverse, so there might need to be additional data passed between planner and executor, or there needs to be some way to tell this that it is ok to drive in reverse during HEALING and CRASHED states. An example is additional_vars, that could be a list with parameters that can tell us which things we can do (for example going in reverse)
-    
-    def compute_pid(setpoint, measured_value, dt):
-        kp = 0.1
-        ki = 0.01
-        kd = 0.05
-
-        error = setpoint - measured_value
-
-        # Proportional term
-        p_term = kp * error
-
-        # Integral term
-        self.integral += error * dt
-        i_term = ki * self.integral
-
-        # Derivative term
-        derivative = (error - self.previous_error) / dt
-        d_term = kd * derivative
-
-        # Remember current error for next time
-        self.previous_error = error
-
-        # PID output
-        output = p_term + i_term + d_term
-        return output
-
     def update_control(self, destination, additional_vars, delta_time):
-        self.vehicle.get_world().debug.draw_string(destination,'*', draw_shadow = True, color=carla.Color(r=0,g=255,b=0), life_time=600.0, persistent_lines =True)
+        self.vehicle.get_world().debug.draw_string(
+            destination,
+            "*",
+            draw_shadow=True,
+            color=carla.Color(r=0, g=255, b=0),
+            life_time=600.0,
+            persistent_lines=True,
+        )
 
         # calculate throttle and heading
-        target_speed = additional_vars[0] if additional_vars[0] is not None else 1.0
+        target_speed = additional_vars[0] if additional_vars else 1.0
         # Get vehicle's current transform and location
         vehicle_transform = self.vehicle.get_transform()
         vehicle_location = vehicle_transform.location
@@ -111,21 +90,11 @@ class Executor(object):
 
         # Create vehicle control object
         control = carla.VehicleControl()
-
-        velocity = self.vehicle.get_velocity()
-        current_speed = (velocity.x**2 + velocity.y**2 + velocity.z**2)**0.5
-        control_output = compute_pid(desired_speed, current_speed, delta_time)
-
-        if control_output > 0:
-            control.throttle = min(control_output, 1.0)
-            control.brake = 0
-        else:
-            control.throttle = 0
-            control.brake = min(abs(control_output), 1.0)
-
+        control.throttle = 0.6  # You might want to adjust this based on distance to destination and current speed
         control.steer = steer_direction * (
             angle_to_destination / np.pi
         )  # Normalize steering angle to [-1, 1]
+        control.brake = 0.0
         control.hand_brake = False
 
         # Apply the control to the vehicle
@@ -153,7 +122,14 @@ class Planner(object):
         self.update_plan()
         self.knowledge.update_destination(self.get_current_destination())
         print("Planner update called")
-        print("Current Status: ", self.knowledge.get_status(), 'Current Destination: ', self.knowledge.get_current_destination(), ' Planned Destination: ', self.get_current_destination())
+        print(
+            "Current Status: ",
+            self.knowledge.get_status(),
+            "Current Destination: ",
+            self.knowledge.get_current_destination(),
+            " Planned Destination: ",
+            self.get_current_destination(),
+        )
         obstacles = self.knowledge.get_obstacles()
         if obstacles is None:
             obstacles = []
@@ -179,84 +155,93 @@ class Planner(object):
         return True
 
     def calculate_detour(self, vehicle_location, obstacle_location):
-        
+
         DETOUR_THRESHOLD = 0.5
         # Calculate the direction vector from vehicle to obstacle
         direction_to_obstacle = obstacle_location - vehicle_location
         distance_to_obstacle = direction_to_obstacle.length()
 
-
         # Normalize the direction vector
         direction_to_obstacle /= distance_to_obstacle
 
         # Perpendicular vectors for left and right directions
-        left_direction = carla.Location(-direction_to_obstacle.y, direction_to_obstacle.x, 0)
-        right_direction = carla.Location(direction_to_obstacle.y, -direction_to_obstacle.x, 0)
+        left_direction = carla.Location(
+            -direction_to_obstacle.y, direction_to_obstacle.x, 0
+        )
+        right_direction = carla.Location(
+            direction_to_obstacle.y, -direction_to_obstacle.x, 0
+        )
 
         # Check space on the left
-        left_detour = vehicle_location + left_direction * DETOUR_THRESHOLD  # Adjust the detour distance
+        left_detour = (
+            vehicle_location + left_direction * DETOUR_THRESHOLD
+        )  # Adjust the detour distance
         if self.is_space_available(left_detour):
             return left_detour
 
         # Check space on the right
-        right_detour = vehicle_location + right_direction * DETOUR_THRESHOLD  # Adjust the detour distance
+        right_detour = (
+            vehicle_location + right_direction * DETOUR_THRESHOLD
+        )  # Adjust the detour distance
         if self.is_space_available(right_detour):
             return right_detour
 
         # If obstacle is directly in front, try going around it
-        front_left_detour = vehicle_location + direction_to_obstacle * DETOUR_THRESHOLD + left_direction * DETOUR_THRESHOLD
+        front_left_detour = (
+            vehicle_location
+            + direction_to_obstacle * DETOUR_THRESHOLD
+            + left_direction * DETOUR_THRESHOLD
+        )
         if self.is_space_available(front_left_detour):
             return front_left_detour
 
-        front_right_detour = vehicle_location + direction_to_obstacle * DETOUR_THRESHOLD + right_direction * DETOUR_THRESHOLD
+        front_right_detour = (
+            vehicle_location
+            + direction_to_obstacle * DETOUR_THRESHOLD
+            + right_direction * DETOUR_THRESHOLD
+        )
         if self.is_space_available(front_right_detour):
             return front_right_detour
 
         # If no detour is possible, return None
         return None
+
     # get current destination
     def get_current_destination(self):
         status = self.knowledge.get_status()
         # if we are driving, then the current destination is next waypoint
         if status == Status.DRIVING:
-           # n_distance = self.path[0].distance(self.knowledge.get_location())
-            #print("Distance To: ", n_distance)
+            # n_distance = self.path[0].distance(self.knowledge.get_location())
+            # print("Distance To: ", n_distance)
             # TODO: Take into account traffic lights and other cars
-            
-            # Dynamically adjust the desired speed based on the distance
-            max_speed = 15.0  # Maximum desired speed in m/s
-            vehicle_location = self.knowledge.get_location()
-            desired_speed = min(max_speed, math.sqrt(2 * 3.0 * vehicle_location.distance(self.path[-1])))
-            self.knowledge.update_data('desired_speed', desired_speed)
-
             return self.path[0]
         if status == Status.ARRIVED:
             return self.knowledge.get_location()
         if status == Status.HEALING:
-            
+
             # Add new destinations if new obstacles are detected
             obstacles = self.knowledge.get_obstacles()
             for obstacle in obstacles:
                 vehicle_location = self.knowledge.get_location()
-                #print(obstacle)
-                obstacle_location = carla.Location(float(obstacle[0]), float(obstacle[1]), float(obstacle[2]))
-                if vehicle_location.distance(obstacle_location) < 1.0:  # Check for nearby obstacles
-                    detour_destination = self.calculate_detour(vehicle_location, obstacle_location)
+                # print(obstacle)
+                obstacle_location = carla.Location(
+                    float(obstacle[0]), float(obstacle[1]), float(obstacle[2])
+                )
+                if (
+                    vehicle_location.distance(obstacle_location) < 1.0
+                ):  # Check for nearby obstacles
+                    detour_destination = self.calculate_detour(
+                        vehicle_location, obstacle_location
+                    )
                     if detour_destination:
                         self.path.appendleft(detour_destination)
-                        break
-           
+
                     else:
-                        self.knowledge.update_data('desired_speed', 0.0)
                         return self.knowledge.get_destination()
-            
+
             # TODO: Implement crash handling. Probably needs to be done by following waypoint list to exit the crash site.
             # Afterwards needs to remake the path.
-            #self.knowledge.update_status(Status.DRIVING
-            max_speed = 15.0  # Maximum desired speed in m/s
-            vehicle_location = self.knowledge.get_location()
-            desired_speed = min(max_speed, math.sqrt(2 * 3.0 * vehicle_location.distance(self.path[0])))
-            self.knowledge.update_data('desired_speed', desired_speed)
+            # self.knowledge.update_status(Status.DRIVING
             return self.path[0]
         if status == Status.CRASHED:
             # TODO: implement function for crash handling, should provide map of wayoints to move towards to for exiting crash state.
@@ -275,22 +260,29 @@ class Planner(object):
         # Get Waypoints from source to destination using Carla's map API
         source_waypoint = world_map.get_waypoint(source.location)
         destination_waypoint = world_map.get_waypoint(destination)
-        
-        
+
         # Generating Waypoint less than 5 meters (may need to change the condition in knowledge)
         current_waypoint = source_waypoint
         count = 0
         PATH_THRESHOLD = 150
         while current_waypoint.transform.location.distance(destination) > 5.0:
-            next_waypoint = current_waypoint.next(4.5)[0]  # Generate waypoints every 2.5 meters
+            next_waypoint = current_waypoint.next(4.5)[
+                0
+            ]  # Generate waypoints every 2.5 meters
             self.path.append(next_waypoint.transform.location)
-            world.debug.draw_string(current_waypoint.transform.location,'^', draw_shadow = True, color=carla.Color(r=255,g=0,b=0), life_time=600.0, persistent_lines =True)
+            world.debug.draw_string(
+                current_waypoint.transform.location,
+                "^",
+                draw_shadow=True,
+                color=carla.Color(r=255, g=0, b=0),
+                life_time=600.0,
+                persistent_lines=True,
+            )
 
             current_waypoint = next_waypoint
             count += 1
             if count > PATH_THRESHOLD:
                 break
-       
 
         self.path.append(destination)
         return self.path
