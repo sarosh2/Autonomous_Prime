@@ -133,6 +133,46 @@ class Planner(object):
         if len(self.path) == 0:
             self.knowledge.update_status(Status.ARRIVED)
 
+    def is_space_available(self, location):
+        # Implement logic to check if the location is free from obstacles
+        for obstacle in self.knowledge.get_obstacles():
+            if location.distance(obstacle) < 3.0:  # Adjust the distance threshold
+                return False
+        return True
+
+    def calculate_detour(self, vehicle_location, obstacle_location):
+        # Calculate the direction vector from vehicle to obstacle
+        direction_to_obstacle = obstacle_location - vehicle_location
+        distance_to_obstacle = direction_to_obstacle.length()
+
+        # Normalize the direction vector
+        direction_to_obstacle /= distance_to_obstacle
+
+        # Perpendicular vectors for left and right directions
+        left_direction = carla.Location(-direction_to_obstacle.y, direction_to_obstacle.x, 0)
+        right_direction = carla.Location(direction_to_obstacle.y, -direction_to_obstacle.x, 0)
+
+        # Check space on the left
+        left_detour = vehicle_location + left_direction * 1.0  # Adjust the detour distance
+        if self.is_space_available(left_detour):
+            return left_detour
+
+        # Check space on the right
+        right_detour = vehicle_location + right_direction * 1.0  # Adjust the detour distance
+        if self.is_space_available(right_detour):
+            return right_detour
+
+        # If obstacle is directly in front, try going around it
+        front_left_detour = vehicle_location + direction_to_obstacle * 1.0 + left_direction * 1.0
+        if self.is_space_available(front_left_detour):
+            return front_left_detour
+
+        front_right_detour = vehicle_location + direction_to_obstacle * 1.0 + right_direction * 1.0
+        if self.is_space_available(front_right_detour):
+            return front_right_detour
+
+        # If no detour is possible, return None
+        return None
     # get current destination
     def get_current_destination(self):
         status = self.knowledge.get_status()
@@ -145,11 +185,20 @@ class Planner(object):
         if status == Status.ARRIVED:
             return self.knowledge.get_location()
         if status == Status.HEALING:
+
+            # Add new destinations if new obstacles are detected
+            obstacles = self.knowledge.get_obstacles()
+            for obstacle in obstacles:
+                if vehicle_location.distance(obstacle) < 1.0:  # Check for nearby obstacles
+                    detour_destination = self.calculate_detour(vehicle_location, obstacle)
+                    if detour_destination:
+                        self.path.appendleft(detour_destination)
+                    else:
+                        self.path.appendleft(self.knowledge.get_destination())
             # TODO: Implement crash handling. Probably needs to be done by following waypoint list to exit the crash site.
             # Afterwards needs to remake the path.
-            #self.knowledge.update_status(Status.DRIVING)
-            to_return = self.knowledge.get_location()
-            return to_return
+            #self.knowledge.update_status(Status.DRIVING
+            return self.path[0]
         if status == Status.CRASHED:
             # TODO: implement function for crash handling, should provide map of wayoints to move towards to for exiting crash state.
             # You should use separate waypoint list for that, to not mess with the original path.
