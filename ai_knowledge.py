@@ -96,7 +96,6 @@ class Knowledge(object):
         return self.retrieve_data("target_speed")
 
     def get_closest_traffic_light_state(self):
-      print("ai knowledge check")
       return self.retrieve_data("traffic_light_value")
 
     def arrived_at(self, destination):

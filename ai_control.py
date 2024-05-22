@@ -225,7 +225,9 @@ class Planner(object):
     def get_current_destination(self):
       tl_value = self.knowledge.get_closest_traffic_light_state()
       print("control tl value", tl_value)
+      
       status = self.knowledge.get_status()
+      
       # if we are driving, then the current destination is next waypoint
       if status == Status.DRIVING:
         # n_distance = self.path[0].distance(self.knowledge.get_location())
@@ -235,15 +237,14 @@ class Planner(object):
         if self.path is None or len(self.path) == 0:
           return self.knowledge.get_location()
     
-        tl_value = self.knowledge.get_closest_traffic_light_state()
-        print("control tl value", tl_value)
+        ''' tl_value = self.knowledge.get_closest_traffic_light_state()
         if tl_value == 'Red':
           print("Stoping on the red light")
           return self.knowledge.get_location() 
-        else: 
+        else: '''
           # Light is grees/yellow 
           # or no close traffic light
-          return self.path[0]
+        return self.path[0]
 
       if status == Status.ARRIVED:
         self.knowledge.update_data("target_speed", 0)

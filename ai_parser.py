@@ -90,7 +90,7 @@ class Monitor(object):
     def check_vehicle_traffic(self, vehicle):
         if vehicle.is_at_traffic_light():
             traffic_light = vehicle.get_traffic_light()
-            return traffic_light.state()
+            return traffic_light.get_state()
 
     def get_nearby_traffic_light(self, vehicle, world, distance_threshold=50):
         # Get the location and forward vector of the vehicle
@@ -183,7 +183,9 @@ class Monitor(object):
         # Update the position of vehicle into knowledge
         self.knowledge.update_data("location", self.vehicle.get_transform().location)
         self.knowledge.update_data("rotation", self.vehicle.get_transform().rotation)
-        self.closest_tl = self.get_nearby_traffic_light(self.vehicle, self.vehicle.get_world(), 50000)
+        #self.closest_tl = self.get_nearby_traffic_light(self.vehicle, self.vehicle.get_world(), 50000)
+        self.knowledge.update_data("traffic_light_value", self.check_vehicle_traffic(self.vehicle))
+
 
     @staticmethod
     def _on_invasion(weak_self, event):
@@ -279,6 +281,8 @@ class Analyser(object):
         if self.knowledge.get_status() == data.Status.CRASHED:
             return
         self.analyse_lidar()
+        print(self.knowledge.get_closest_traffic_light_state())
         #self.analyze_obstacles()
         print("Lidar Data from Knowledge: ", self.knowledge.get_status())
+
         return
