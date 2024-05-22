@@ -28,6 +28,7 @@ class Status(Enum):
     CRASHED = 2
     HEALING = 3
     UNDEFINED = 4
+    REDLIGHT = 5
 
 
 # Class that holds the knowledge of the current state and serves as interaction point for all the modules
@@ -38,6 +39,7 @@ class Knowledge(object):
             "location": carla.Vector3D(0.0, 0.0, 0.0),
             "rotation": carla.Rotation(0.0, 0.0, 0.0),
             "lidar_data": None,
+            "is_at_traffic_light": False
         }
         self.destination = self.get_location()
         self.status_changed = lambda *_, **__: None
@@ -61,6 +63,7 @@ class Knowledge(object):
 
     def get_current_destination(self):
         return self.destination
+    
 
     # Retrieving data from memory
     # !Take note that it is unsafe and does not check whether the given field is in dic
@@ -81,21 +84,26 @@ class Knowledge(object):
     def get_location(self):
         return self.retrieve_data("location")
 
+    def get_is_vehicle_obstacle(self):
+        return self.retrieve_data("is_vehicle")
     # return last recieved lidar data
     def get_lidar_data(self):
         return self.retrieve_data("lidar_data")
 
-    def get_desired_speed(self):
-        return self.retrieve_data("desired_speed")
-
     def get_obstacles(self):
         return self.retrieve_data("obstacles")
+    
+    def get_target_speed(self):
+        return self.retrieve_data("target_speed")
+    
+    def get_traffic_light_state(self):
+        return self.retrieve_data("is_at_traffic_light")
 
     def arrived_at(self, destination):
         return self.distance(self.get_location(), destination) < 5.0
 
     def update_destination(self, new_destination):
-        if self.distance(self.destination, new_destination) > 4.95:
+        if self.distance(self.destination, new_destination) > 4.99:
             self.destination = new_destination
             self.destination_changed(new_destination)
 
