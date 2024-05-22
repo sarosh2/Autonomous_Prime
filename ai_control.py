@@ -135,6 +135,7 @@ class Planner(object):
     # Create a map of waypoints to follow to the destination and save it
     def make_plan(self, source, destination):
         self.path = self.build_path(source, destination)
+        # print("Planner set path: ", self.path)
         self.update_plan()
         self.knowledge.update_destination(self.get_current_destination())
 
@@ -142,9 +143,13 @@ class Planner(object):
     def update(self, time_elapsed):
         self.update_plan()
         self.knowledge.update_destination(self.get_current_destination())
+        # print("Planner update called")
+        # print("Current Status: ", self.knowledge.get_status(), 'Current Destination: ', self.knowledge.get_current_destination(), ' Planned Destination: ', self.get_current_destination())
         obstacles = self.knowledge.get_obstacles()
         if obstacles is None:
             obstacles = []
+
+        # print("Obstacles: ", len(obstacles))
 
     # Update internal state to make sure that there are waypoints to follow and that we have not arrived yet
     def update_plan(self):
@@ -215,7 +220,7 @@ class Planner(object):
 
         # If no detour is possible, return None
         return None
-
+    
     # get current destination
     def get_current_destination(self):
         status = self.knowledge.get_status()
@@ -227,7 +232,17 @@ class Planner(object):
             self.knowledge.update_data("target_speed", 8)
             if self.path is None or len(self.path) == 0:
                 return self.knowledge.get_location()
-            return self.path[0]
+        
+            tl_value = self.knowledge.get_closest_traffic_light_state()
+            print("control tl value", tl_value)
+            if tl_value == 'Red':
+                print("Stoping on the red light")
+                return self.knowledge.get_location() 
+            else: 
+                # Light is grees/yellow 
+                # or no close traffic light
+                return self.path[0]
+
         if status == Status.ARRIVED:
             self.knowledge.update_data("target_speed", 0)
             return self.knowledge.get_location()

@@ -3,7 +3,6 @@
 import glob
 import os
 import sys
-
 try:
     sys.path.append(
         glob.glob(
@@ -22,6 +21,7 @@ import weakref
 import carla
 import ai_knowledge as data
 import numpy as np
+import math
 
 
 # Monitor is responsible for reading the data from the sensors and telling it to the knowledge
@@ -54,6 +54,12 @@ class Monitor(object):
 
         # create LIDAR sensor
         self.setup_lidar(world)
+
+        # Checking traffic light state
+        closest_tl = self.get_nearby_traffic_light(vehicle, world, 50000)
+        # TODO check below line code implementation
+        self.knowledge.update_data("traffic_light_value", self.get_traffic_light_state(closest_tl))
+        # self.knowledge.memory["traffic_light_value"] = self.get_traffic_light_state(closest_tl)
 
         # create depth sensor
 
@@ -120,13 +126,44 @@ class Monitor(object):
                 if dot_product > 0:  # Traffic light is in front of the vehicle
                     closest_traffic_light = traffic_light
                     min_distance = distance
-
+        print("traffic light direction: ",self.get_facing_direction(closest_traffic_light))
+        print("vehicle direction: ", self.get_facing_direction(vehicle))
         return closest_traffic_light
 
     def get_traffic_light_state(self, traffic_light):
         if traffic_light:
             return traffic_light.get_state()
         return None
+
+    def get_facing_direction(self, actor):
+      # Get the transform of the actor (traffic light or vehicle)
+      transform = actor.get_transform()
+      
+      # Extract the rotation (pitch, yaw, roll)
+      rotation = transform.rotation
+      
+      # Calculate the facing direction based on the yaw angle
+      yaw = rotation.yaw
+      facing_direction = carla.Vector3D(
+          x=math.cos(math.radians(yaw)),
+          y=math.sin(math.radians(yaw)),
+          z=0
+      )
+      return facing_direction
+
+    def are_directions_aligned(self, direction1, direction2, threshold=0.95):
+        # Calculate the dot product of the two direction vectors
+        dot_product = (direction1.x * direction2.x + 
+                      direction1.y * direction2.y + 
+                      direction1.z * direction2.z)
+        
+        # Normalize the dot product (it should be between -1 and 1)
+        magnitude1 = math.sqrt(direction1.x**2 + direction1.y**2 + direction1.z**2)
+        magnitude2 = math.sqrt(direction2.x**2 + direction2.y**2 + direction2.z**2)
+        normalized_dot_product = dot_product / (magnitude1 * magnitude2)
+        
+        # Check if the directions are aligned within the given threshold
+        return normalized_dot_product > threshold
 
     # Function that is called at time intervals to update ai-state
     def update(self, time_elapsed):
