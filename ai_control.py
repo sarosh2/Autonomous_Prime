@@ -253,6 +253,7 @@ class Planner(object):
                     )
                     if detour_destination:
                         self.path.appendleft(detour_destination)
+                        break
 
                     else:
                         return self.knowledge.get_location()
