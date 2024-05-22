@@ -62,6 +62,7 @@ class Knowledge(object):
 
     def get_current_destination(self):
         return self.destination
+    
 
     # Retrieving data from memory
     # !Take note that it is unsafe and does not check whether the given field is in dic
@@ -82,12 +83,17 @@ class Knowledge(object):
     def get_location(self):
         return self.retrieve_data("location")
 
+    def get_is_vehicle_obstacle(self):
+        return self.retrieve_data("is_vehicle")
     # return last recieved lidar data
     def get_lidar_data(self):
         return self.retrieve_data("lidar_data")
 
     def get_obstacles(self):
         return self.retrieve_data("obstacles")
+    
+    def get_target_speed(self):
+        return self.retrieve_data("target_speed")
 
     def get_closest_traffic_light_state(self):
       print("ai knowledge check")
@@ -97,7 +103,7 @@ class Knowledge(object):
         return self.distance(self.get_location(), destination) < 5.0
 
     def update_destination(self, new_destination):
-        if self.distance(self.destination, new_destination) > 4.95:
+        if self.distance(self.destination, new_destination) > 4.99:
             self.destination = new_destination
             self.destination_changed(new_destination)
 

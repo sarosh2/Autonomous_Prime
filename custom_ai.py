@@ -31,8 +31,8 @@ class Autopilot(object):
         self.vehicle = vehicle
         self.knowledge = data.Knowledge()
         self.knowledge.set_status_changed_callback(self.status_updated)
-        self.analyser = parser.Analyser(self.knowledge)
         self.monitor = parser.Monitor(self.knowledge, self.vehicle)
+        self.analyser = parser.Analyser(self.knowledge, self.vehicle)
         self.planner = control.Planner(self.knowledge, self.vehicle)
         self.executor = control.Executor(self.knowledge, self.vehicle)
         self.prev_time = int(round(time.time() * 1000))
