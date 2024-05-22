@@ -239,7 +239,7 @@ class Planner(object):
             self.knowledge.update_data("target_speed", 0)
             return self.knowledge.get_location()
         if status == Status.HEALING:
-            self.knowledge.update_data("target_speed", 0.5)
+            #self.knowledge.update_data("target_speed", 0.5)
             # Add new destinations if new obstacles are detected
             obstacles = self.knowledge.get_obstacles()
             for obstacle_location in obstacles:
@@ -252,10 +252,24 @@ class Planner(object):
                         vehicle_location, obstacle_location
                     )
                     if detour_destination:
+                        self.knowledge.update_data("target_speed", 5)
                         self.path.appendleft(detour_destination)
+                        print("Taking DETOUR")
+
+                        world = self.vehicle.get_world()
+                        world.debug.draw_string(
+                            detour_destination,
+                            "^",
+                            draw_shadow=True,
+                            color=carla.Color(r=255, g=0, b=0),
+                            life_time=600.0,
+                            persistent_lines=True,
+                        )
                         break
 
                     else:
+                        self.knowledge.update_data("target_speed", 0.0)
+                        print("Stopping Due to Healing")
                         return self.knowledge.get_location()
 
             # TODO: Implement crash handling. Probably needs to be done by following waypoint list to exit the crash site.
@@ -300,6 +314,7 @@ class Planner(object):
                 key=lambda wp: wp.transform.location.distance(destination),
             )
 
+            '''
             # Determine if a lane change is necessary based on the destination's relative position
             destination_direction = (
                 destination_waypoint.transform.location
@@ -331,7 +346,7 @@ class Planner(object):
                     possible_waypoint
                     and possible_waypoint.lane_type == carla.LaneType.Driving
                 ):
-                    next_waypoint = possible_waypoint
+                    next_waypoint = possible_waypoint'''
 
             self.path.append(next_waypoint.transform.location)
             world.debug.draw_string(
