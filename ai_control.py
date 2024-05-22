@@ -177,7 +177,7 @@ class Planner(object):
         MINIMUM_SAFE_DISTANCE = 2.0  # Distance to obstacle to consider a detour
         
         # Calculate the direction vector from vehicle to obstacle
-        direction_to_obstacle = obstacle_location - vehicle_location
+        direction_to_obstacle = obstacle_location
         distance_to_obstacle = direction_to_obstacle.length()
         
         if distance_to_obstacle > MINIMUM_SAFE_DISTANCE:
@@ -260,17 +260,10 @@ class Planner(object):
                 print("Taking DETOUR")
 
                 world = self.vehicle.get_world()
-                world.debug.draw_string(
-                    detour_destination,
-                    "^",
-                    draw_shadow=True,
-                    color=carla.Color(r=255, g=0, b=0),
-                    life_time=600.0,
-                    persistent_lines=True,
-                )
+                world.debug.draw_string(detour_destination,"^",draw_shadow=True,color=carla.Color(r=255, g=0, b=0),life_time=600.0,persistent_lines=True)
             else:
                 self.knowledge.update_data("target_speed", 0.0)
-                print("Stopping Due to Obstacle")
+                #print("Stopping Due to Obstacle")
                 return self.knowledge.get_location()
             
             return self.path[0]
@@ -345,14 +338,7 @@ class Planner(object):
                     next_waypoint = possible_waypoint'''
 
             self.path.append(next_waypoint.transform.location)
-            world.debug.draw_string(
-                next_waypoint.transform.location,
-                "^",
-                draw_shadow=True,
-                color=carla.Color(r=255, g=0, b=0),
-                life_time=600.0,
-                persistent_lines=True,
-            )
+            world.debug.draw_string(next_waypoint.transform.location,"^",draw_shadow=True,color=carla.Color(r=255, g=0, b=0),life_time=600.0,persistent_lines=True)
 
             current_waypoint = next_waypoint
             count += 1

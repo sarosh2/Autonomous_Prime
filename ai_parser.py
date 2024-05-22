@@ -61,6 +61,11 @@ class Monitor(object):
     def lidar_callback(self, point_cloud):
         data = np.copy(np.frombuffer(point_cloud.raw_data, dtype=np.dtype("f4")))
         data = np.reshape(data, (int(data.shape[0] / 4), 4))
+        #world = self.vehicle.get_world()
+        for data_point in data:
+            location = carla.Location(float(-data_point[0]), float(-data_point[1]), float(data_point[2])) + self.vehicle.get_transform().location
+            #world.debug.draw_string(location,".",draw_shadow=False,color=carla.Color(r=255, g=0, b=255),life_time=1,persistent_lines=True)
+
         self.knowledge.update_data("lidar_data", data)
 
     def setup_lidar(self, world):
@@ -69,12 +74,12 @@ class Monitor(object):
         lidar_bp = world.get_blueprint_library().find("sensor.lidar.ray_cast")
         lidar_bp.set_attribute("range", str(30))
         lidar_bp.set_attribute("noise_stddev", str(0.1))
-        lidar_bp.set_attribute("upper_fov", str(15.0))
-        lidar_bp.set_attribute("lower_fov", str(-25.0))
-        lidar_bp.set_attribute("channels", str(64.0))
-        lidar_bp.set_attribute("points_per_second", str(50000))
+        lidar_bp.set_attribute("upper_fov", str(25.0))
+        lidar_bp.set_attribute("lower_fov", str(-20.0))
+        lidar_bp.set_attribute("channels", str(32.0))
+        lidar_bp.set_attribute("points_per_second", str(20000))
         lidar_bp.set_attribute("rotation_frequency", str(20.0))
-        lidar_transform = carla.Transform(carla.Location(z=2))
+        lidar_transform = carla.Transform(carla.Location(z=2.2))
 
         # create lidar sensor
         self.lidar_sensor = world.spawn_actor(
@@ -149,14 +154,14 @@ class Analyser(object):
         self.knowledge = knowledge
         self.vehicle = vehicle
         self.is_lidar_below_threshold = False
-        self.obstacle_threshold = 1.1
-        self.vehicle_threshold = 10.0
+        self.obstacle_high_threshold = 3.1
+        self.obstacle_low_threshold = 1.5
 
     def detect_obstacle(self, data):
         distance = self.get_distance(data)
-        if distance < self.obstacle_threshold:  # Example threshold for obstacles
+        if self.obstacle_low_threshold < distance < self.obstacle_high_threshold:  # Example threshold for obstacles
             # print('Obstacle detected. : ', data)
-            obstacle_location = carla.Location(float(data[0]), float(data[1]), float(data[2]))
+            obstacle_location = carla.Location(float(-data[0]), float(-data[1]), float(data[2]))
             return obstacle_location
         else:
             return None
@@ -183,8 +188,9 @@ class Analyser(object):
             return
         for obstacle in obstacles:
             world = self.vehicle.get_world()
+            true_location = self.vehicle.get_transform().location + obstacle
             world.debug.draw_string(
-                obstacle,
+                true_location,
                 "O",
                 draw_shadow=False,
                 color=carla.Color(r=0, g=0, b=255),
@@ -205,15 +211,6 @@ class Analyser(object):
         is_vehicle = False
 
         for pdata in lidar_data:
-          
-            if self.get_distance(pdata) < self.vehicle_threshold:
-                #clear
-                #print(" Checking for vehicle")
-                if self.is_vehicle_obstacle(pdata):
-                  is_vehicle = True
-                  print("Vehicle detected")
-                  obstacles.append(carla.Location(float(pdata[0]), float(pdata[1]), float(pdata[2])))
-                  break
             obstacle = self.detect_obstacle(pdata)
             if obstacle is not None:
                 obstacles.append(obstacle)
@@ -221,7 +218,6 @@ class Analyser(object):
         if len(obstacles) == 0:
             self.knowledge.update_status(data.Status.DRIVING)
         else:
-            self.knowledge.update_data("is_vehicle", is_vehicle)
             self.knowledge.update_data("obstacles", obstacles)
             self.knowledge.update_status(data.Status.HEALING)
 
