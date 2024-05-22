@@ -61,7 +61,7 @@ class Executor(object):
         throttle = 0.4
         print("Current Speed: ", current_speed)
         if current_speed < target_speed:
-            throttle = throttle + 0.02 * (target_speed - current_speed)
+            throttle = 1.0 * (target_speed - current_speed) / target_speed
         elif current_speed > target_speed:
             throttle = 0.3 - 0.5 * (current_speed - target_speed)
         return throttle
