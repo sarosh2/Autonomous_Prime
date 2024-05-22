@@ -63,7 +63,7 @@ class Executor(object):
         if current_speed < target_speed:
             throttle = 1.0 * (target_speed - current_speed) / target_speed
         elif current_speed > target_speed:
-            throttle = 0.3 - 0.5 * (current_speed - target_speed)
+            throttle = 1.0 * (target_speed - current_speed) / current_speed
         return throttle
 
     # TODO: steer in the direction of destination and throttle or brake depending on how close we are to destination
@@ -111,12 +111,19 @@ class Executor(object):
 
         # Create vehicle control object
         control = carla.VehicleControl()
+        throttle = self.calculate_throttle_from_speed()
 
-        control.throttle = self.calculate_throttle_from_speed()
+        if throttle > 0.0:
+            control.throttle = throttle
+            control.brake = 0.0
+
+        else:
+            control.throttle = 0.0
+            control.brake = abs(throttle)
+
         control.steer = steer_direction * (
             angle_to_destination / np.pi
         )  # Normalize steering angle to [-1, 1]
-        control.brake = 0.0
         control.hand_brake = False
 
         # Apply the control to the vehicle
