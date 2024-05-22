@@ -243,7 +243,7 @@ class Planner(object):
             # Add new destinations if new obstacles are detected
             obstacles = self.knowledge.get_obstacles()
             for obstacle_location in obstacles:
-                vehicle_location = self.knowledge.get_location()
+                a = self.knowledge.get_location()
                 # print(obstacle)
                 if (
                     vehicle_location.distance(obstacle_location) < 3.0
