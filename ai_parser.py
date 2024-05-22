@@ -88,11 +88,12 @@ class Monitor(object):
         )
         self.lidar_sensor.listen(self.lidar_callback)
 
-    def get_nearby_traffic_light(self, vehicle, distance_threshold=50):
+    def get_nearby_traffic_light(self, vehicle, world, distance_threshold=50):
         # Get the location and forward vector of the vehicle
         vehicle_location = vehicle.get_location()
         vehicle_transform = vehicle.get_transform()
         vehicle_forward_vector = vehicle_transform.get_forward_vector()
+
 
         # Get the world the vehicle is in
         world = vehicle.get_world()
@@ -126,6 +127,14 @@ class Monitor(object):
                 if dot_product > 0:  # Traffic light is in front of the vehicle
                     closest_traffic_light = traffic_light
                     min_distance = distance
+        world.debug.draw_string(
+                traffic_light_location,
+                "^",
+                draw_shadow=True,
+                color=carla.Color(r=255, g=0, b=255),
+                life_time=600.0,
+                persistent_lines=True,
+            )
         print("traffic light direction: ",self.get_facing_direction(closest_traffic_light))
         print("vehicle direction: ", self.get_facing_direction(vehicle))
         return closest_traffic_light

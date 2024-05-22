@@ -223,63 +223,65 @@ class Planner(object):
     
     # get current destination
     def get_current_destination(self):
-        status = self.knowledge.get_status()
-        # if we are driving, then the current destination is next waypoint
-        if status == Status.DRIVING:
-            # n_distance = self.path[0].distance(self.knowledge.get_location())
-            # print("Distance To: ", n_distance)
-            # TODO: Take into account traffic lights and other cars
-            self.knowledge.update_data("target_speed", 8)
-            if self.path is None or len(self.path) == 0:
-                return self.knowledge.get_location()
-        
-            tl_value = self.knowledge.get_closest_traffic_light_state()
-            print("control tl value", tl_value)
-            if tl_value == 'Red':
-                print("Stoping on the red light")
-                return self.knowledge.get_location() 
-            else: 
-                # Light is grees/yellow 
-                # or no close traffic light
-                return self.path[0]
+      tl_value = self.knowledge.get_closest_traffic_light_state()
+      print("control tl value", tl_value)
+      status = self.knowledge.get_status()
+      # if we are driving, then the current destination is next waypoint
+      if status == Status.DRIVING:
+        # n_distance = self.path[0].distance(self.knowledge.get_location())
+        # print("Distance To: ", n_distance)
+        # TODO: Take into account traffic lights and other cars
+        self.knowledge.update_data("target_speed", 8)
+        if self.path is None or len(self.path) == 0:
+          return self.knowledge.get_location()
+    
+        tl_value = self.knowledge.get_closest_traffic_light_state()
+        print("control tl value", tl_value)
+        if tl_value == 'Red':
+          print("Stoping on the red light")
+          return self.knowledge.get_location() 
+        else: 
+          # Light is grees/yellow 
+          # or no close traffic light
+          return self.path[0]
 
-        if status == Status.ARRIVED:
-            self.knowledge.update_data("target_speed", 0)
-            return self.knowledge.get_location()
-        if status == Status.HEALING:
-            self.knowledge.update_data("target_speed", 0.5)
-            # Add new destinations if new obstacles are detected
-            obstacles = self.knowledge.get_obstacles()
-            for obstacle_location in obstacles:
-                vehicle_location = self.knowledge.get_location()
-                # print(obstacle)
-                if (
-                    vehicle_location.distance(obstacle_location) < 3.0
-                ):  # Check for nearby obstacles
-                    detour_destination = self.calculate_detour(
-                        vehicle_location, obstacle_location
-                    )
-                    if detour_destination:
-                        self.path.appendleft(detour_destination)
-
-                    else:
-                        return self.knowledge.get_location()
-
-            # TODO: Implement crash handling. Probably needs to be done by following waypoint list to exit the crash site.
-            # Afterwards needs to remake the path.
-            # self.knowledge.update_status(Status.DRIVING
-            if self.path is None or len(self.path) == 0:
-                return self.knowledge.get_location()
-            return self.path[0]
-        if status == Status.CRASHED:
-            # TODO: implement function for crash handling, should provide map of wayoints to move towards to for exiting crash state.
-            # You should use separate waypoint list for that, to not mess with the original path.
-            return self.knowledge.get_location()
-        # otherwise destination is same as current position
+      if status == Status.ARRIVED:
+        self.knowledge.update_data("target_speed", 0)
         return self.knowledge.get_location()
+      if status == Status.HEALING:
+          self.knowledge.update_data("target_speed", 0.5)
+          # Add new destinations if new obstacles are detected
+          obstacles = self.knowledge.get_obstacles()
+          for obstacle_location in obstacles:
+              vehicle_location = self.knowledge.get_location()
+              # print(obstacle)
+              if (
+                  vehicle_location.distance(obstacle_location) < 3.0
+              ):  # Check for nearby obstacles
+                  detour_destination = self.calculate_detour(
+                      vehicle_location, obstacle_location
+                  )
+                  if detour_destination:
+                      self.path.appendleft(detour_destination)
 
-    # TODO: Implementation
-    # TODO: create path of waypoints from source to destination
+                  else:
+                      return self.knowledge.get_location()
+
+          # TODO: Implement crash handling. Probably needs to be done by following waypoint list to exit the crash site.
+          # Afterwards needs to remake the path.
+          # self.knowledge.update_status(Status.DRIVING
+          if self.path is None or len(self.path) == 0:
+              return self.knowledge.get_location()
+          return self.path[0]
+      if status == Status.CRASHED:
+          # TODO: implement function for crash handling, should provide map of wayoints to move towards to for exiting crash state.
+          # You should use separate waypoint list for that, to not mess with the original path.
+          return self.knowledge.get_location()
+      # otherwise destination is same as current position
+      return self.knowledge.get_location()
+
+  # TODO: Implementation
+  # TODO: create path of waypoints from source to destination
 
     def build_path(self, source, destination):
         self.path = deque([])
