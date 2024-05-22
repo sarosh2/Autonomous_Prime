@@ -211,7 +211,7 @@ def main():
             sensor.listen(lambda event: _on_collision(mal, event))
 
             control = carla.VehicleControl()
-            control.throttle = 0.7
+            control.throttle = 1.0
             control.steer = -0.07
             control.brake = 0.0
             control.hand_brake = False

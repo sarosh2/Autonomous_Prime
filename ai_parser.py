@@ -176,6 +176,23 @@ class Analyser(object):
               if distance < 2.0:
                   return True
         return False
+    
+    def analyze_obstacles(self):
+        obstacles = self.knowledge.get_obstacles()
+        if obstacles is None:
+            return
+        for obstacle in obstacles:
+            world = self.vehicle.get_world()
+            world.debug.draw_string(
+                obstacle,
+                "O",
+                draw_shadow=False,
+                color=carla.Color(r=0, g=0, b=255),
+                life_time=1,
+                persistent_lines=True,
+            )
+        return 
+
 
     def analyse_lidar(self):
         lidar_data = self.knowledge.get_lidar_data()
@@ -213,5 +230,6 @@ class Analyser(object):
         if self.knowledge.get_status() == data.Status.CRASHED:
             return
         self.analyse_lidar()
+        self.analyze_obstacles()
         #print("Lidar Data from Knowledge: ", self.knowledge.get_status())
         return
