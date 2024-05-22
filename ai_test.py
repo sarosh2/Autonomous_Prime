@@ -133,10 +133,11 @@ def main():
             carla.Vector3D(9, -22, 1.8431),
         ]
         ex4 = [ carla.Vector3D(42.5959,-4.3443,1.8431), carla.Vector3D(134,-3,1.8431)]
+        ex5 = [ carla.Vector3D(-5.22,46.15,1.8431), carla.Vector3D(-3.99,124.02, 0.0), carla.Vector3D(15.01, 151.00, 0.0)]
 
         # kzs2 = carla.Vector3D(-85,-23,1.8431)
 
-        milestones = [ex1, ex2, ex3, ex4]
+        milestones = [ex1, ex2, ex3, ex4, ex5]
         ms = max(0, min(args.milestone_number - 1, len(milestones) - 1))
         ex = milestones[ms]
         end = ex[len(ex) - 1]
@@ -144,10 +145,9 @@ def main():
 
         # Getting waypoint to spawn
         start = get_start_point(world, ex[0])
-        world.debug.draw_string(
+        world.debug.draw_point(
             destination,
-            "^",
-            draw_shadow=True,
+            size=2.0,
             color=carla.Color(r=0, g=0, b=255),
             life_time=600.0,
             persistent_lines=True,
@@ -163,6 +163,13 @@ def main():
         def route_finished(autopilot):
             pos = autopilot.get_vehicle().get_transform().location
             print("Vehicle arrived at destination: ", pos)
+            world.debug.draw_point(
+                pos,
+                size=1.5,
+                color=carla.Color(r=0, g=0, b=255),
+                life_time=600.0,
+                persistent_lines=True,
+            )
             if pos.distance(carla.Location(end)) < 6.0:
                 print("Excercise route finished")
                 running = False
