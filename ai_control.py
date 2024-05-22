@@ -239,11 +239,11 @@ class Planner(object):
             self.knowledge.update_data("target_speed", 0)
             return self.knowledge.get_location()
         if status == Status.HEALING:
-            #self.knowledge.update_data("target_speed", 0.5)
+            self.knowledge.update_data("target_speed", 0.5)
             # Add new destinations if new obstacles are detected
             obstacles = self.knowledge.get_obstacles()
             for obstacle_location in obstacles:
-                a = self.knowledge.get_location()
+                vehicle_location = self.knowledge.get_location()
                 # print(obstacle)
                 if (
                     vehicle_location.distance(obstacle_location) < 3.0
@@ -252,7 +252,7 @@ class Planner(object):
                         vehicle_location, obstacle_location
                     )
                     if detour_destination:
-                        self.knowledge.update_data("target_speed", 5)
+                        self.knowledge.update_data("target_speed", 0.5)
                         self.path.appendleft(detour_destination)
                         print("Taking DETOUR")
 
