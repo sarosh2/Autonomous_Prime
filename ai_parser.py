@@ -82,57 +82,21 @@ class Monitor(object):
         )
         self.lidar_sensor.listen(self.lidar_callback)
 
-    def get_nearby_traffic_light(self, vehicle, distance_threshold=50):
-        # Get the location and forward vector of the vehicle
-        vehicle_location = vehicle.get_location()
-        vehicle_transform = vehicle.get_transform()
-        vehicle_forward_vector = vehicle_transform.get_forward_vector()
-
-        # Get the world the vehicle is in
-        world = vehicle.get_world()
-
-        # Get all traffic lights in the world
-        traffic_lights = world.get_actors().filter("traffic.traffic_light")
-
-        # Find the nearest traffic light within the distance threshold and in front of the vehicle
-        closest_traffic_light = None
-        min_distance = distance_threshold
-
-        for traffic_light in traffic_lights:
-            # Get the location of the traffic light
-            traffic_light_location = traffic_light.get_location()
-
-            # Calculate the distance from the vehicle to the traffic light
-            distance = vehicle_location.distance(traffic_light_location)
-
-            if distance < min_distance:
-                # Calculate the direction vector from the vehicle to the traffic light
-                direction_vector = traffic_light_location - vehicle_location
-                direction_vector = direction_vector.make_unit_vector()
-
-                # Calculate the dot product to check if the traffic light is in front of the vehicle
-                dot_product = (
-                    direction_vector.x * vehicle_forward_vector.x
-                    + direction_vector.y * vehicle_forward_vector.y
-                    + direction_vector.z * vehicle_forward_vector.z
-                )
-
-                if dot_product > 0:  # Traffic light is in front of the vehicle
-                    closest_traffic_light = traffic_light
-                    min_distance = distance
-
-        return closest_traffic_light
-
-    def get_traffic_light_state(self, traffic_light):
-        if traffic_light:
-            return traffic_light.get_state()
-        return None
+    def check_vehicle_traffic_light(self):
+        if self.vehicle.is_at_traffic_light():
+            traffic_light = self.vehicle.get_traffic_light()
+            if traffic_light.get_state() == carla.TrafficLightState.Red:
+                return True
+        return False
 
     # Function that is called at time intervals to update ai-state
     def update(self, time_elapsed):
         # Update the position of vehicle into knowledge
         self.knowledge.update_data("location", self.vehicle.get_transform().location)
         self.knowledge.update_data("rotation", self.vehicle.get_transform().rotation)
+
+        #update the traffic state
+        self.knowledge.update_data("is_at_traffic_light", self.check_vehicle_traffic_light())
 
     @staticmethod
     def _on_invasion(weak_self, event):
@@ -208,10 +172,32 @@ class Analyser(object):
             self.knowledge.update_data("obstacles", obstacles)
             self.knowledge.update_status(data.Status.HEALING)
 
+    def analyse_obstacles(self):
+        obstacles = self.knowledge.get_obstacles()
+        if obstacles is None:
+            return
+        for obstacle in obstacles:
+            world = self.vehicle.get_world()
+            world.debug.draw_string(
+                obstacle,
+                "O",
+                draw_shadow=False,
+                color=carla.Color(r=255, g=0, b=0),
+                life_time=0.5,
+                persistent_lines=True,
+            )
+    # Analyse Traffic Light
+    def analyse_traffic_light(self):
+        return self.knowledge.get_traffic_light_state()
+
     # Function that is called at time intervals to update ai-state
     def update(self, time_elapsed):
         if self.knowledge.get_status() == data.Status.CRASHED:
             return
+        if self.analyse_traffic_light():
+            self.knowledge.update_status(data.Status.REDLIGHT)
+            return
         self.analyse_lidar()
+        self.analyse_obstacles()
         print("Lidar Data from Knowledge: ", self.knowledge.get_status())
         return
