@@ -299,21 +299,39 @@ class Planner(object):
                 next_waypoints,
                 key=lambda wp: wp.transform.location.distance(destination),
             )
-            if next_waypoint is None:
-                if current_waypoint.lane_change == carla.LaneChange.Right:
-                    possible_waypoint = current_waypoint.get_right_lane()
-                    if (
-                        possible_waypoint
-                        and possible_waypoint.lane_type == carla.LaneType.Driving
-                    ):
-                        next_waypoint = possible_waypoint
-                elif current_waypoint.lane_change == carla.LaneChange.Left:
-                    next_waypoint = current_waypoint.get_left_lane()
-                    if (
-                        possible_waypoint
-                        and possible_waypoint.lane_type == carla.LaneType.Driving
-                    ):
-                        next_waypoint = possible_waypoint
+
+            # Determine if a lane change is necessary based on the destination's relative position
+            destination_direction = (
+                destination_waypoint.transform.location
+                - current_waypoint.transform.location
+            )
+            destination_direction /= (
+                destination_direction.length()
+            )  # Normalize the vector
+
+            current_forward_vector = current_waypoint.transform.get_forward_vector()
+            cross_product = (
+                current_forward_vector.x * destination_direction.y
+                - current_forward_vector.y * destination_direction.x
+            )
+
+            # If destination is to the right, consider changing to the right lane
+            if cross_product > 0:
+                possible_waypoint = current_waypoint.get_right_lane()
+                if (
+                    possible_waypoint
+                    and possible_waypoint.lane_type == carla.LaneType.Driving
+                ):
+                    next_waypoint = possible_waypoint
+
+            # If destination is to the left, consider changing to the left lane
+            elif cross_product < 0:
+                possible_waypoint = current_waypoint.get_left_lane()
+                if (
+                    possible_waypoint
+                    and possible_waypoint.lane_type == carla.LaneType.Driving
+                ):
+                    next_waypoint = possible_waypoint
 
             self.path.append(next_waypoint.transform.location)
             world.debug.draw_string(
