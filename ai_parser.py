@@ -149,7 +149,7 @@ class Analyser(object):
         self.knowledge = knowledge
         self.vehicle = vehicle
         self.is_lidar_below_threshold = False
-        self.obstacle_threshold = 1.0
+        self.obstacle_threshold = 1.1
         self.vehicle_threshold = 10.0
 
     def detect_obstacle(self, data):
@@ -213,5 +213,5 @@ class Analyser(object):
         if self.knowledge.get_status() == data.Status.CRASHED:
             return
         self.analyse_lidar()
-        print("Lidar Data from Knowledge: ", self.knowledge.get_status())
+        #print("Lidar Data from Knowledge: ", self.knowledge.get_status())
         return
