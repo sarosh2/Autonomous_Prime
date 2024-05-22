@@ -287,20 +287,25 @@ class Planner(object):
             if len(next_waypoints) == 0:
                 break
 
-            next_waypoint = min(next_waypoints, key=lambda wp: wp.transform.location.distance(destination))
-
-
-            # Check if lane change is needed
-            if next_waypoint.lane_change == carla.LaneChange.Right:
-                possible_waypoint = next_waypoint.get_right_lane()
-                if possible_waypoint and possible_waypoint.lane_type == carla.LaneType.Driving:
-                    next_waypoint = possible_waypoint
-
-            elif next_waypoint.lane_change == carla.LaneChange.Left:
-                possible_waypoint = next_waypoint.get_left_lane()
-                if possible_waypoint and possible_waypoint.lane_type == carla.LaneType.Driving:
-                    next_waypoint = possible_waypoint
-            
+            next_waypoint = min(
+                next_waypoints,
+                key=lambda wp: wp.transform.location.distance(destination),
+            )
+            if next_waypoint is None:
+                if current_waypoint.lane_change == carla.LaneChange.Right:
+                    possible_waypoint = current_waypoint.get_right_lane()
+                    if (
+                        possible_waypoint
+                        and possible_waypoint.lane_type == carla.LaneType.Driving
+                    ):
+                        next_waypoint = possible_waypoint
+                elif current_waypoint.lane_change == carla.LaneChange.Left:
+                    next_waypoint = current_waypoint.get_left_lane()
+                    if (
+                        possible_waypoint
+                        and possible_waypoint.lane_type == carla.LaneType.Driving
+                    ):
+                        next_waypoint = possible_waypoint
 
             self.path.append(next_waypoint.transform.location)
             world.debug.draw_string(
