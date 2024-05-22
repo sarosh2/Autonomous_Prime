@@ -208,10 +208,26 @@ class Analyser(object):
             self.knowledge.update_data("obstacles", obstacles)
             self.knowledge.update_status(data.Status.HEALING)
 
+    def analyze_obstacles(self):
+        obstacles = self.knowledge.get_obstacles()
+        if obstacles is None:
+            return
+        for obstacle in obstacles:
+            world = self.vehicle.get_world()
+            world.debug.draw_string(
+                obstacle,
+                "O",
+                draw_shadow=False,
+                color=carla.Color(r=255, g=0, b=0),
+                life_time=0.1,
+                persistent_lines=True,
+            )
+
     # Function that is called at time intervals to update ai-state
     def update(self, time_elapsed):
         if self.knowledge.get_status() == data.Status.CRASHED:
             return
         self.analyse_lidar()
+        #self.analyze_obstacles()
         print("Lidar Data from Knowledge: ", self.knowledge.get_status())
         return
