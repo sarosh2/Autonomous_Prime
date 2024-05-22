@@ -56,10 +56,9 @@ class Monitor(object):
         self.setup_lidar(world)
 
         # Checking traffic light state
-        closest_tl = self.get_nearby_traffic_light(vehicle, world, 50000)
+        # self.closest_tl = None
         # TODO check below line code implementation
-        self.knowledge.update_data("traffic_light_value", self.get_traffic_light_state(closest_tl))
-        # self.knowledge.memory["traffic_light_value"] = self.get_traffic_light_state(closest_tl)
+        self.knowledge.update_data("traffic_light_value", self.check_vehicle_traffic(vehicle))
 
         # create depth sensor
 
@@ -87,6 +86,11 @@ class Monitor(object):
             lidar_bp, lidar_transform, attach_to=self.vehicle
         )
         self.lidar_sensor.listen(self.lidar_callback)
+
+    def check_vehicle_traffic(self, vehicle):
+        if vehicle.is_at_traffic_light():
+            traffic_light = vehicle.get_traffic_light()
+            return traffic_light.state()
 
     def get_nearby_traffic_light(self, vehicle, world, distance_threshold=50):
         # Get the location and forward vector of the vehicle
@@ -131,7 +135,7 @@ class Monitor(object):
                 traffic_light_location,
                 "^",
                 draw_shadow=True,
-                color=carla.Color(r=255, g=0, b=255),
+                color=carla.Color(r=0, g=0, b=255),
                 life_time=600.0,
                 persistent_lines=True,
             )
@@ -179,6 +183,7 @@ class Monitor(object):
         # Update the position of vehicle into knowledge
         self.knowledge.update_data("location", self.vehicle.get_transform().location)
         self.knowledge.update_data("rotation", self.vehicle.get_transform().rotation)
+        self.closest_tl = self.get_nearby_traffic_light(self.vehicle, self.vehicle.get_world(), 50000)
 
     @staticmethod
     def _on_invasion(weak_self, event):
