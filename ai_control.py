@@ -238,6 +238,9 @@ class Planner(object):
         if status == Status.ARRIVED:
             self.knowledge.update_data("target_speed", 0)
             return self.knowledge.get_location()
+        if status == Status.REDLIGHT:
+            self.knowledge.update_data("target_speed", 0)
+            return self.knowledge.get_location()
         if status == Status.HEALING:
             self.knowledge.update_data("target_speed", 0.5)
             # Add new destinations if new obstacles are detected
