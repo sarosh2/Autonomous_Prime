@@ -55,15 +55,14 @@ class Monitor(object):
         # create LIDAR sensor
         self.setup_lidar(world)
 
-        # create depth sensor
 
     # convert lidar information into an np array and send it to knowledge
     def lidar_callback(self, point_cloud):
         data = np.copy(np.frombuffer(point_cloud.raw_data, dtype=np.dtype("f4")))
         data = np.reshape(data, (int(data.shape[0] / 4), 4))
-        #world = self.vehicle.get_world()
+        world = self.vehicle.get_world()
         #for data_point in data:
-            #location = carla.Location(float(-data_point[0]), float(-data_point[1]), float(data_point[2])) + self.vehicle.get_transform().location
+            #location = carla.Location(float(-data_point[0]) -2 , float(-data_point[1]), float(data_point[2])) + self.vehicle.get_transform().location
             #world.debug.draw_string(location,".",draw_shadow=False,color=carla.Color(r=255, g=0, b=255),life_time=1,persistent_lines=True)
 
         self.knowledge.update_data("lidar_data", data)
@@ -75,11 +74,11 @@ class Monitor(object):
         lidar_bp.set_attribute("range", str(30))
         lidar_bp.set_attribute("noise_stddev", str(0.1))
         lidar_bp.set_attribute("upper_fov", str(25.0))
-        lidar_bp.set_attribute("lower_fov", str(-21.4))
+        lidar_bp.set_attribute("lower_fov", str(-20.0))
         lidar_bp.set_attribute("channels", str(32.0))
         lidar_bp.set_attribute("points_per_second", str(20000))
         lidar_bp.set_attribute("rotation_frequency", str(20.0))
-        lidar_transform = carla.Transform(carla.Location(z=1.95))
+        lidar_transform = carla.Transform(carla.Location(z=1.0))
 
         # create lidar sensor
         self.lidar_sensor = world.spawn_actor(
@@ -122,6 +121,8 @@ class Analyser(object):
         self.obstacle_low_threshold = 1.5
 
     def detect_obstacle(self, data):
+        if data[2] < -0.335:
+            return None
         distance = self.get_distance(data)
         if self.obstacle_low_threshold < distance < self.obstacle_high_threshold:  # Example threshold for obstacles
             # print('Obstacle detected. : ', data)
@@ -196,6 +197,6 @@ class Analyser(object):
             print("Traffic Light Detected, current Status: ", self.knowledge.get_status())
             return
         self.analyse_lidar()
-        #self.analyze_obstacles()
+        self.analyze_obstacles()
         print("Analysis from Monitored Knowledge, Current Status: ", self.knowledge.get_status())
         return

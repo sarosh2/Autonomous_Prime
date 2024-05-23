@@ -175,8 +175,8 @@ class Planner(object):
             self.knowledge.update_status(Status.ARRIVED)
 
     def calculate_detour(self, obstacles, vehicle_location):
-        DETOUR_THRESHOLD = 0.75  # Increased to allow more aggressive detours
-        MINIMUM_SAFE_DISTANCE = 0.76
+        DETOUR_THRESHOLD = 0.6  # Increased to allow more aggressive detours
+        MINIMUM_SAFE_DISTANCE = 0.6
 
         for obstacle_location in obstacles:
         
@@ -200,21 +200,21 @@ class Planner(object):
 
             # Check space on the left
             left_detour = vehicle_location + left_direction * DETOUR_THRESHOLD
-            if self.is_space_available(left_detour):
+            if self.is_space_available(left_detour, vehicle_location):
                 return left_detour
 
             # Check space on the right
             right_detour = vehicle_location + right_direction * DETOUR_THRESHOLD
-            if self.is_space_available(right_detour):
+            if self.is_space_available(right_detour, vehicle_location):
                 return right_detour
 
             # If obstacle is directly in front, try going around it
             front_left_detour = vehicle_location + direction_to_obstacle * DETOUR_THRESHOLD + left_direction * DETOUR_THRESHOLD
-            if self.is_space_available(front_left_detour):
+            if self.is_space_available(front_left_detour, vehicle_location):
                 return front_left_detour
 
             front_right_detour = vehicle_location + direction_to_obstacle * DETOUR_THRESHOLD + right_direction * DETOUR_THRESHOLD
-            if self.is_space_available(front_right_detour):
+            if self.is_space_available(front_right_detour, vehicle_location):
                 return front_right_detour
 
         # If no detour is possible, return None
@@ -223,14 +223,7 @@ class Planner(object):
     def is_space_available(self, location, vehicle_location):
         # Implement logic to check if the location is free from obstacles
         for obstacle in self.knowledge.get_obstacles():
-            if location.distance(obstacle + vehicle_location) < 5.0:  # Adjust the distance threshold
-                return False
-        return True
-
-    def is_space_available(self, location):
-        # Implement logic to check if the location is free from obstacles
-        for obstacle in self.knowledge.get_obstacles():
-            if location.distance(obstacle) < 3.0:  # Adjust the distance threshold
+            if location.distance(obstacle + vehicle_location) < 3.3:  # Adjust the distance threshold
                 return False
         return True
 
@@ -250,7 +243,7 @@ class Planner(object):
             # n_distance = self.path[0].distance(self.knowledge.get_location())
             # print("Distance To: ", n_distance)
             # TODO: Take into account traffic lights and other cars
-            self.knowledge.update_data("target_speed", 10)
+            self.knowledge.update_data("target_speed", 10.1)
             if self.path is None or len(self.path) == 0:
                 return self.knowledge.get_location()
             return self.path[0]
@@ -298,7 +291,7 @@ class Planner(object):
         # Generating Waypoints with less than 5 meters interval
         current_waypoint = source_waypoint
         count = 0
-        PATH_THRESHOLD = source.location.distance(destination) / 5 + 10
+        PATH_THRESHOLD = source.location.distance(destination) / 5 + 11
 
         while current_waypoint.transform.location.distance(destination) > 5.01:
             next_waypoints = current_waypoint.next(5.0)
