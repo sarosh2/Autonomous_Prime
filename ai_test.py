@@ -147,7 +147,7 @@ def main():
         start = get_start_point(world, ex[0])
         world.debug.draw_point(
             destination,
-            size=2.0,
+            size=0.5,
             color=carla.Color(r=0, g=0, b=255),
             life_time=600.0,
             persistent_lines=True,
@@ -165,7 +165,7 @@ def main():
             print("Vehicle arrived at destination: ", pos)
             world.debug.draw_point(
                 pos,
-                size=1.5,
+                size=0.5,
                 color=carla.Color(r=0, g=0, b=255),
                 life_time=600.0,
                 persistent_lines=True,

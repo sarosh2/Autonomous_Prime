@@ -178,6 +178,7 @@ class Analyser(object):
             return
         for obstacle in obstacles:
             world = self.vehicle.get_world()
+            '''
             world.debug.draw_string(
                 obstacle,
                 "O",
@@ -185,7 +186,7 @@ class Analyser(object):
                 color=carla.Color(r=255, g=0, b=0),
                 life_time=0.5,
                 persistent_lines=True,
-            )
+            )'''
     # Analyse Traffic Light
     def analyse_traffic_light(self):
         return self.knowledge.get_traffic_light_state()

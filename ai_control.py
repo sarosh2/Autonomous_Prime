@@ -45,6 +45,17 @@ class Executor(object):
         if status == Status.CRASHED:
             self.handle_crash()
 
+        if status == Status.REDLIGHT:
+            self.handle_redlight()
+
+    def handle_redlight(self):
+        control = carla.VehicleControl()
+        control.throttle = 0.0
+        control.steer = 0.0
+        control.brake = 1.0
+        control.hand_brake = False
+        self.vehicle.apply_control(control)
+
     def handle_crash(self):
         control = carla.VehicleControl()
         control.throttle = 0.0
@@ -59,9 +70,9 @@ class Executor(object):
 
         # Calculate throttle based on speed difference
         throttle = 0.4
-        print("Current Speed: ", current_speed)
+        #print("Current Speed: ", current_speed)
         if current_speed < target_speed:
-            throttle = 1.0 * (target_speed - current_speed) / target_speed
+            throttle = 1.1 * (target_speed - current_speed) / target_speed
         elif current_speed > target_speed:
             throttle = 1.0 * (target_speed - current_speed) / current_speed
         return throttle
