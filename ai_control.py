@@ -44,6 +44,16 @@ class Executor(object):
             self.update_control(dest, [1], time_elapsed)
         if status == Status.CRASHED:
             self.handle_crash()
+        if status == Status.REDLIGHT:
+            self.handle_redlight()
+    
+    def handle_redlight(self):
+        control = carla.VehicleControl()
+        control.throttle = 0.0
+        control.steer = 0.0
+        control.brake = 1.0
+        control.hand_brake = False
+        self.vehicle.apply_control(control)
 
     def handle_crash(self):
         control = carla.VehicleControl()
@@ -164,62 +174,56 @@ class Planner(object):
         if len(self.path) == 0:
             self.knowledge.update_status(Status.ARRIVED)
 
-    def detour_needed(self, vehicle_location, obstacles):
+    def calculate_detour(self, obstacles, vehicle_location):
+        DETOUR_THRESHOLD = 0.75  # Increased to allow more aggressive detours
+        MINIMUM_SAFE_DISTANCE = 0.76
+
         for obstacle_location in obstacles:
-            detour_destination = self.calculate_detour(vehicle_location, obstacle_location)
-            if detour_destination:
-                return True, detour_destination
         
-        return False, None
+            # Calculate the direction vector from vehicle to obstacle
+            direction_to_obstacle = obstacle_location
+            distance_to_obstacle = direction_to_obstacle.length()
 
-    def calculate_detour(self, vehicle_location, obstacle_location):
-        DETOUR_THRESHOLD = 1.5  # Increased to allow more aggressive detours
-        MINIMUM_SAFE_DISTANCE = 2.0  # Distance to obstacle to consider a detour
-        
-        # Calculate the direction vector from vehicle to obstacle
-        direction_to_obstacle = obstacle_location
-        distance_to_obstacle = direction_to_obstacle.length()
-        
-        if distance_to_obstacle > MINIMUM_SAFE_DISTANCE:
-            return None  # No detour needed if the obstacle is far enough
+            if distance_to_obstacle < MINIMUM_SAFE_DISTANCE:
+                continue
 
-        # Normalize the direction vector
-        direction_to_obstacle /= distance_to_obstacle
+            # Normalize the direction vector
+            direction_to_obstacle /= distance_to_obstacle
 
-        # Perpendicular vectors for left and right directions
-        left_direction = carla.Location(
-            -direction_to_obstacle.y, direction_to_obstacle.x, 0
-        )
-        right_direction = carla.Location(
-            direction_to_obstacle.y, -direction_to_obstacle.x, 0
-        )
+            # Perpendicular vectors for left and right directions
+            left_direction = carla.Location(
+                -direction_to_obstacle.y, direction_to_obstacle.x, 0
+            )
+            right_direction = carla.Location(
+                direction_to_obstacle.y, -direction_to_obstacle.x, 0
+            )
 
-        # Check space on the left
-        left_detour = vehicle_location + left_direction * DETOUR_THRESHOLD
-        if self.is_space_available(left_detour):
-            return left_detour
+            # Check space on the left
+            left_detour = vehicle_location + left_direction * DETOUR_THRESHOLD
+            if self.is_space_available(left_detour):
+                return left_detour
 
-        # Check space on the right
-        right_detour = vehicle_location + right_direction * DETOUR_THRESHOLD
-        if self.is_space_available(right_detour):
-            return right_detour
+            # Check space on the right
+            right_detour = vehicle_location + right_direction * DETOUR_THRESHOLD
+            if self.is_space_available(right_detour):
+                return right_detour
 
-        # If obstacle is directly in front, try going around it
-        front_left_detour = vehicle_location + direction_to_obstacle * DETOUR_THRESHOLD + left_direction * DETOUR_THRESHOLD
-        if self.is_space_available(front_left_detour):
-            return front_left_detour
+            # If obstacle is directly in front, try going around it
+            front_left_detour = vehicle_location + direction_to_obstacle * DETOUR_THRESHOLD + left_direction * DETOUR_THRESHOLD
+            if self.is_space_available(front_left_detour):
+                return front_left_detour
 
-        front_right_detour = vehicle_location + direction_to_obstacle * DETOUR_THRESHOLD + right_direction * DETOUR_THRESHOLD
-        if self.is_space_available(front_right_detour):
-            return front_right_detour
+            front_right_detour = vehicle_location + direction_to_obstacle * DETOUR_THRESHOLD + right_direction * DETOUR_THRESHOLD
+            if self.is_space_available(front_right_detour):
+                return front_right_detour
 
         # If no detour is possible, return None
         return None
 
-    def is_space_available(self, location):
+    def is_space_available(self, location, vehicle_location):
         # Implement logic to check if the location is free from obstacles
         for obstacle in self.knowledge.get_obstacles():
-            if location.distance(obstacle) < 3.0:  # Adjust the distance threshold
+            if location.distance(obstacle + vehicle_location) < 5.0:  # Adjust the distance threshold
                 return False
         return True
 
@@ -234,39 +238,43 @@ class Planner(object):
     def get_current_destination(self):
         status = self.knowledge.get_status()
         # if we are driving, then the current destination is next waypoint
+
+        if status == Status.REDLIGHT:
+            self.knowledge.update_data("target_speed", 0)
+            return self.knowledge.get_location()
+        if status == Status.ARRIVED:
+            self.knowledge.update_data("target_speed", 0)
+            return self.knowledge.get_location()
+
         if status == Status.DRIVING:
             # n_distance = self.path[0].distance(self.knowledge.get_location())
             # print("Distance To: ", n_distance)
             # TODO: Take into account traffic lights and other cars
-            self.knowledge.update_data("target_speed", 8)
+            self.knowledge.update_data("target_speed", 10)
             if self.path is None or len(self.path) == 0:
                 return self.knowledge.get_location()
             return self.path[0]
-        if status == Status.ARRIVED:
-            self.knowledge.update_data("target_speed", 0)
-            return self.knowledge.get_location()
+        
         if status == Status.HEALING:
             #self.knowledge.update_data("target_speed", 0.5)
             # Add new destinations if new obstacles are detected
             obstacles = self.knowledge.get_obstacles()
+
             vehicle_location = self.knowledge.get_location()
-
             # Determine if a detour is needed
-            detour_needed, detour_destination = self.detour_needed(vehicle_location, obstacles)
+            detour_destination = self.calculate_detour(obstacles, vehicle_location)
 
-            if detour_needed:
-                self.knowledge.update_data("target_speed", 5)
-                self.path.appendleft(detour_destination)
-                print("Taking DETOUR")
+            if detour_destination is not None:
+                self.knowledge.update_data("target_speed", 3)
 
-                world = self.vehicle.get_world()
-                world.debug.draw_string(detour_destination,"^",draw_shadow=True,color=carla.Color(r=255, g=0, b=0),life_time=600.0,persistent_lines=True)
+                #world = self.vehicle.get_world()
+                #world.debug.draw_string(detour_destination,"^",draw_shadow=True,color=carla.Color(r=255, g=0, b=0),life_time=600.0,persistent_lines=True)
+                return detour_destination
             else:
                 self.knowledge.update_data("target_speed", 0.0)
-                #print("Stopping Due to Obstacle")
+                print("Stopping Due to Obstacle")
                 return self.knowledge.get_location()
             
-            return self.path[0]
         if status == Status.CRASHED:
             # TODO: implement function for crash handling, should provide map of wayoints to move towards to for exiting crash state.
             # You should use separate waypoint list for that, to not mess with the original path.

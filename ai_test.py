@@ -133,7 +133,7 @@ def main():
             carla.Vector3D(9, -22, 1.8431),
         ]
         ex4 = [ carla.Vector3D(42.5959,-4.3443,1.8431), carla.Vector3D(134,-3,1.8431)]
-        ex5 = [ carla.Vector3D(-5.22,46.15,1.8431), carla.Vector3D(-3.99,124.02, 0.0), carla.Vector3D(15.01, 151.00, 0.0)]
+        ex5 = [ carla.Vector3D(-5.22,46.15,1.8431), carla.Vector3D(-30, 167, 1.8431)]
 
         # kzs2 = carla.Vector3D(-85,-23,1.8431)
 

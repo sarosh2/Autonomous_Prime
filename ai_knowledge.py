@@ -28,6 +28,7 @@ class Status(Enum):
     CRASHED = 2
     HEALING = 3
     UNDEFINED = 4
+    REDLIGHT = 5
 
 
 # Class that holds the knowledge of the current state and serves as interaction point for all the modules
@@ -38,6 +39,8 @@ class Knowledge(object):
             "location": carla.Vector3D(0.0, 0.0, 0.0),
             "rotation": carla.Rotation(0.0, 0.0, 0.0),
             "lidar_data": None,
+            "is_at_traffic_light": False
+
         }
         self.destination = self.get_location()
         self.status_changed = lambda *_, **__: None
@@ -61,6 +64,9 @@ class Knowledge(object):
 
     def get_current_destination(self):
         return self.destination
+    
+    def get_traffic_light_state(self):
+        return self.retrieve_data("is_at_traffic_light")
     
 
     # Retrieving data from memory
